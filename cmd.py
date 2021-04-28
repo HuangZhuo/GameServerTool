@@ -116,7 +116,15 @@ class CMD_INI(INI):
     @property
     def FIND_WINDOW_COMPATIBLE_MODE(self):
         # 兼容模式查找窗口
-        return self.GetBool('CMD', 'FIND_WINDOW_COMPATIBLE_MODE', False)
+        return self.GetBool('CMD', 'FIND_WINDOW_COMPATIBLE_MODE', True)
+
+    @property
+    def COMBINE_SERVER_WINDOWS_IN_TASKBAR(self):
+        # 是否在任务栏合并服务器窗口（只支持兼容模式查找）
+        return self.GetBool('CMD', 'COMBINE_SERVER_WINDOWS_IN_TASKBAR', True)
+
+    def GetAction(self, key):
+        return self.Get('Actions', key, None)
 
 
 class GUI:
@@ -125,12 +133,12 @@ class GUI:
         self._gui = tkinter.Tk()
         self._gui.title(self._title)
         self._gui.resizable(False, False)
+        logging.info('Server Tools Opend!')
         self.initMenu()
         self.initUI()
-        logging.info('Server Tools Opend!')
         self._gui.protocol("WM_DELETE_WINDOW", self.onXClick)
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
-            self._gui.after(1000, self.onUpdate)
+            self._gui.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
         self._gui.mainloop()
 
     def initUI(self):
@@ -203,7 +211,11 @@ class GUI:
             items = GUITool.getChildsByType(self._frameServers, tkinter.Checkbutton)
 
         for w in items:
-            server = ServerManager.getServer(w.widgetName)
+            servername = w.widgetName
+            if not STool.isServerDirExists(servername):
+                # todo:delete the serveritem
+                pass
+            server = ServerManager.getServer(servername)
             # 修改按钮文字，颜色
             w['text'] = server.getInfo(debug=CFG.DEBUG_MODE)
             w['fg'] = 'green' if server.isRunning() else 'black'
@@ -227,7 +239,7 @@ class GUI:
         btn = tkinter.Checkbutton(frame, text=name, variable=var, onvalue=True, offvalue=False)
         btn.var = var
         btn.widgetName = name
-        btn.select()
+        btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
         btn.grid(row=idx, column=0, sticky='W')
         nextrow = counter(1)
         self.createBtn('目录',
@@ -299,6 +311,7 @@ class GUI:
             ServerManager.getServer(v).restart()
 
     def onTestClick(self):
+        Action('Test').execute(7, 8, 9)
         pass
 
     def getSelectedServers(self):
@@ -358,10 +371,16 @@ class STool:
         return os.path.isdir(dirname) and STool.getServerDirID(dirname) >= 0
 
     @staticmethod
+    def isServerDirExists(dirname):
+        # 服务器目录是否存在
+        dirname = os.path.join(CFG.SERVER_ROOT, dirname)
+        return os.path.exists(dirname)
+
+    @staticmethod
     def getServerDirID(dirname):
         # 获取服务器路径中的数字ID
         import re
-        m = re.search(r'gameserver([0-9]+)', dirname)
+        m = re.search(r'^gameserver([0-9]+)$', os.path.basename(dirname))
         return int(m.group(1)) if m else -1
 
     @staticmethod
@@ -484,7 +503,7 @@ class ServerManager:
 
     @abstractmethod
     def isDBServerRunning(port):
-        # 根据端口监听判断数据库是否开启
+        # todo:根据端口监听判断数据库是否开启
         pass
 
     @staticmethod
@@ -528,15 +547,26 @@ class ServerV3(IServer):
                 pass
         self._servercfg.Save()
 
+        # 执行创建脚本（如果有）
+        Action('CreateGameServer').execute(id)
+
     def start(self):
         if not self.isValid():
             GUITool.MessageBox('服务器不可用')
             return False
         if self.isRunning():
             return False
-        proc = subprocess.Popen("start GameServer.exe /console", shell=True, cwd=self._serverPath)
-        proc.wait()
-        # os.system("start GameServer.exe /console")
+
+        if CFG.COMBINE_SERVER_WINDOWS_IN_TASKBAR:
+            start_bat_path = os.path.join(self._serverPath, 'start.bat')
+            with open(start_bat_path, 'w') as f:
+                f.write('title {0}({1}) && gameserver /console && exit'.format(self._servercfg.name,
+                                                                               self._servercfg.title))
+            proc = subprocess.Popen('start {0}'.format('start.bat'), shell=True, cwd=self._serverPath)
+            proc.wait()
+        else:
+            proc = subprocess.Popen("start GameServer.exe /console", shell=True, cwd=self._serverPath)
+            proc.wait()
         logging.info('服务器[%s][%s]开启成功', self._dirname, self.getCfg().name)
         return True
 
@@ -647,12 +677,6 @@ class ServerV3(IServer):
         return os.path.exists(self._exePath) and os.path.exists(self._iniPath)
 
     def isRunning(self):
-        # try:
-        #     window = uiautomation.WindowControl(Name=self._exePath)
-        #     return window.Exists()
-        # except LookupError as e:
-        #     return False
-
         # 这里根据运行exe（带路径）直接查找，速度快，定位准
         if self._pid != 0 and psutil.pid_exists(self._pid):
             try:
@@ -694,6 +718,30 @@ class ServerV3(IServer):
 
     def showInExplorer(self):
         subprocess.Popen('explorer %s' % (self._serverPath))
+
+
+class Action:
+    def __init__(self, name):
+        self._name = name
+        self._cmd = None
+        action = CFG.GetAction(name)
+        if action and os.path.exists(action):
+            self._cmd = os.path.normpath(action)
+
+    def execute(self, *args):
+        if not self._cmd:
+            logging.info('Action[%s]未配置', self._name)
+            return
+        cmd = '{0} {1}'.format(self._cmd, ' '.join([str(v) for v in args]))
+        logging.info('Action[%s]开始执行：%s', self._name, cmd)
+
+        tmpfilename = 'action_output.txt'
+        os.system('{0} > {1}'.format(cmd, tmpfilename))
+        with open(tmpfilename, 'r') as f:
+            for line in f.readlines():
+                logging.info('> {}'.format(line.strip()))
+        os.remove(tmpfilename)
+        logging.info('Action[%s]执行结束', self._name)
 
 
 # 这种方式暂时没有走通
