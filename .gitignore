@@ -5,3 +5,5 @@
 /dist
 /*.log
 huey.db
+huey.db-shm
+huey.db-wal

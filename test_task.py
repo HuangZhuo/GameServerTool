@@ -1,7 +1,9 @@
 # https://huey.readthedocs.io/en/latest/index.html
-from huey import SqliteHuey
 
-huey = SqliteHuey()
+from huey.contrib.mini import MiniHuey
+
+huey = MiniHuey()
+huey.start()
 
 
 @huey.task()
@@ -9,10 +11,16 @@ def add(a, b):
     return a + b
 
 
-def main():
-    r = add.schedule((1, 2), delay=0)
-    print(r(blocking=True))
+def test1():
+    r = add.schedule((1, 2), delay=1)
+    print(r())
+
+
+def test2():
+    task = add.s(1, 2)
+    result = huey.enqueue(task)
 
 
 if __name__ == '__main__':
-    main()
+    test2()
+    huey.stop()
