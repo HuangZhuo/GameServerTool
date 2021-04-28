@@ -4,3 +4,4 @@
 /*.spec
 /dist
 /*.log
+huey.db
