@@ -48,6 +48,11 @@ class INI:
         with open(self.__filename, 'w+') as f:
             self.__parser.write(f)
 
+    def SaveOptionIfNotExist(self, section, key, fallback):
+        if not self.__parser.has_option(section, key):
+            self.__parser.set(section, key, str(fallback))
+            self.Save()
+
     def Set(self, section, key, value):
         return self.__parser.set(section, key, value)
 
@@ -102,6 +107,21 @@ class CMD_INI(INI):
     def SERVER_EXIT_CHECK_INTERVAL(self):
         # 服务器关闭检查时间间隔
         return self.GetFloat('CMD', 'SERVER_EXIT_CHECK_INTERVAL', 0.1)
+
+    @property
+    def SERVER_START_TIMEOUT(self):
+        # 服务器开启检查超时
+        return self.GetInt('CMD', 'SERVER_START_TIMEOUT', 5)
+
+    @property
+    def SERVER_START_CHECK_INTERVAL(self):
+        # 服务器开启检查时间间隔
+        return self.GetFloat('CMD', 'SERVER_START_CHECK_INTERVAL', 0.1)
+
+    @property
+    def SERVER_HIDE_ON_START(self):
+        # 服务器开启时最小化
+        return self.GetBool('CMD', 'SERVER_HIDE_ON_START', True)
 
     @property
     def SERVER_STATE_UPDATE_INTERVAL(self):
@@ -169,6 +189,7 @@ class GUI:
         self.createBtn('热更', self.onHotUpdateServerClick, parent=frame3, grid=(0, nextrow()))
         self.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextrow()))
         self.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextrow()))
+        self.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextrow()))
         if CFG.DEBUG_MODE:
             self.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextrow()))['bg'] = 'red'
             tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
@@ -294,6 +315,11 @@ class GUI:
             if ServerManager.getServer(v).exit():
                 self.refreshServerList(v)
 
+    def onHideServerConsoleClick(self):
+        for v in self.getSelectedServers():
+            if ServerManager.getServer(v).isRunning():
+                ServerManager.getServer(v).hideConsoleWindow()
+
     def onTerminateServerClick(self):
         for v in self.getSelectedServers():
             if ServerManager.getServer(v).exit(bForce=True):
@@ -304,7 +330,7 @@ class GUI:
             if ServerManager.getServer(v).hotUpdate():
                 self.refreshServerList(v)
             else:
-                break
+                continue
 
     def onRestartServerClick(self):
         for v in self.getSelectedServers():
@@ -444,10 +470,10 @@ def get_hwnds_for_pid(pid):
     import win32process
 
     def callback(hwnd, hwnds):
-        if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
-            _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
-            if found_pid == pid:
-                hwnds.append(hwnd)
+        # if win32gui.IsWindowVisible(hwnd) and win32gui.IsWindowEnabled(hwnd):
+        _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
+        if found_pid == pid:
+            hwnds.append(hwnd)
 
     hwnds = []
     win32gui.EnumWindows(callback, hwnds)
@@ -527,6 +553,8 @@ class ServerV3(IServer):
         self._servercfg = ServerConfig(self._iniPath) if self.isValid() else None
         # 服务器进程（查找窗口，检查服务器是否运行时会被赋值）
         self._pid = 0
+        # 控制台窗口
+        self._window = None
         if bCreateNew:
             # 创建新服
             self.onCreateNew()
@@ -568,6 +596,17 @@ class ServerV3(IServer):
             proc = subprocess.Popen("start GameServer.exe /console", shell=True, cwd=self._serverPath)
             proc.wait()
         logging.info('服务器[%s][%s]开启成功', self._dirname, self.getCfg().name)
+
+        # 阻塞，等完全开启后再返回
+        timeout = 0
+        while (not self.isRunning()):
+            time.sleep(CFG.SERVER_START_CHECK_INTERVAL)
+            timeout += CFG.SERVER_START_CHECK_INTERVAL
+            if timeout >= CFG.SERVER_START_TIMEOUT:
+                GUITool.MessageBox('服务器开启检测超时')
+                return False
+        if CFG.SERVER_HIDE_ON_START and self.findWindow():
+            self.findWindow().Hide()
         return True
 
     def exit(self, bForce=False):
@@ -598,10 +637,14 @@ class ServerV3(IServer):
         return self.start()
 
     def hotUpdate(self):
-        # STool.updateServerDir(self._dirname, filelist=('data', 'GameConfig.ini'))
+        if not self.isRunning():
+            return False
         return self.execute('lua')
 
     def findWindow(self):
+        if self._window and self._window.Exists():
+            return self._window
+
         if CFG.FIND_WINDOW_COMPATIBLE_MODE:
             return self.findWindowEx()
 
@@ -609,10 +652,10 @@ class ServerV3(IServer):
             GUITool.MessageBox('服务器[{0}]未开启'.format(self._servercfg.name))
             return None
         try:
-            window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
+            self._window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
             # 目前不支持通过ProcessId查找窗口，参数会被忽略
             # window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', ProcessId=self._pid)
-            return window
+            return self._window
         except LookupError as e:
             logging.error(repr(e))
             GUITool.MessageBox('查找服务器窗口失败')
@@ -636,9 +679,10 @@ class ServerV3(IServer):
                 # 检查是否作为cmd的子进程运行
                 hwnd = get_hwnds_for_pid(ppid if psutil.pid_exists(ppid) else self._pid)
                 if hwnd > 0:
-                    return uiautomation.ControlFromHandle(hwnd)
+                    self._window = uiautomation.ControlFromHandle(hwnd)
+                    return self._window
                 else:
-                    logging.error('查找窗口句柄失败：pid=%d，ppid=%d', self._pid, ppid)
+                    logging.error('查找窗口句柄失败：pid=%d，ppid=%d(exist=%s)', self._pid, ppid, str(psutil.pid_exists(ppid)))
             except LookupError as e:
                 logging.error(repr(e))
                 GUITool.MessageBox('查找服务器窗口失败')
@@ -649,6 +693,8 @@ class ServerV3(IServer):
     def execute(self, cmd):
         window = self.findWindow()
         if window:
+            window.Show()
+            window.SwitchToThisWindow()
             window.SendKeys(cmd)
             window.SendKeys('{Enter}')
             logging.info('服务器[%s][%s][pid=%s]执行命令[%s]', self._dirname, self.getCfg().name, self._pid, cmd)
@@ -700,6 +746,7 @@ class ServerV3(IServer):
             except psutil.AccessDenied as e:
                 pass
         self._pid = 0
+        self._window = None
         return False
 
     def getLastError(self):
@@ -712,7 +759,15 @@ class ServerV3(IServer):
     def showConsoleWindow(self):
         window = self.findWindow()
         if window:
+            window.Show()
             window.SwitchToThisWindow()
+            return True
+        return False
+
+    def hideConsoleWindow(self):
+        window = self.findWindow()
+        if window:
+            window.Hide()
             return True
         return False
 

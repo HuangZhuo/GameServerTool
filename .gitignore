@@ -4,3 +4,8 @@
 /*.spec
 /dist
 /*.log
+
+# test huey
+huey.db
+huey.db-shm
+huey.db-wal
