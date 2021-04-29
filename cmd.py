@@ -605,8 +605,8 @@ class ServerV3(IServer):
             if timeout >= CFG.SERVER_START_TIMEOUT:
                 GUITool.MessageBox('服务器开启检测超时')
                 return False
-        if CFG.SERVER_HIDE_ON_START and self.findWindow():
-            self.findWindow().Hide()
+        if CFG.SERVER_HIDE_ON_START:
+            self.hideConsoleWindow()
         return True
 
     def exit(self, bForce=False):
@@ -693,7 +693,6 @@ class ServerV3(IServer):
     def execute(self, cmd):
         window = self.findWindow()
         if window:
-            window.Show()
             window.SwitchToThisWindow()
             window.SendKeys(cmd)
             window.SendKeys('{Enter}')
@@ -759,7 +758,6 @@ class ServerV3(IServer):
     def showConsoleWindow(self):
         window = self.findWindow()
         if window:
-            window.Show()
             window.SwitchToThisWindow()
             return True
         return False
@@ -767,7 +765,7 @@ class ServerV3(IServer):
     def hideConsoleWindow(self):
         window = self.findWindow()
         if window:
-            window.Hide()
+            window.Minimize()
             return True
         return False
 
