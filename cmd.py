@@ -46,7 +46,8 @@ class PluginCreateMultiServers(tkinter.Frame):
             return
         if input.isnumeric():
             # print(int(input))
-            ServerManager.createServer(int(input))
+            if ServerManager.createServer(int(input)):
+                self._gui.initServerList()
             return
 
         listCreate = []
