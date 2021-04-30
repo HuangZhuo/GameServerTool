@@ -468,9 +468,11 @@ class STool:
         dirname = os.path.join(dirname, "GameServer.exe")
         return os.path.normpath(dirname)
 
+    @staticmethod
     def showServerTemplateInExplorer():
         subprocess.Popen('explorer %s' % (CFG.SERVER_TEMPLATE))
 
+    @staticmethod
     def showFileInTextEditor(filename, wait=False):
         exe = CFG.TEXT_EDITOR_PATH if os.path.exists(CFG.TEXT_EDITOR_PATH) else 'notepad'
         proc = subprocess.Popen('%s %s' % (exe, filename))
@@ -590,7 +592,15 @@ class ServerV3(IServer):
         for k, v in items:
             sec, op = k.split('.')
             try:
-                self._servercfg.Set(sec, op, v.format(id))
+                value = ''
+                if v.find('${id}') < 0:
+                    # 兼容旧配置
+                    value = v.format(id)
+                else:
+                    # 新配置采用eval()方法实现
+                    v = v.replace('${id}', str(id))
+                    value = str(eval(v))
+                self._servercfg.Set(sec, op, value)
             except Exception as e:
                 logging.error(e)
                 pass
