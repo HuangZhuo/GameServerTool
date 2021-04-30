@@ -21,6 +21,7 @@ import shutil
 import uiautomation
 import logging, traceback
 from abc import ABCMeta, abstractmethod
+import plugin
 
 
 class INI:
@@ -147,22 +148,25 @@ class CMD_INI(INI):
         return self.Get('Actions', key, None)
 
 
+CFG = CMD_INI('cmd.ini')
+
+
 class GUI:
     def __init__(self, title):
         self._title = title
-        self._gui = tkinter.Tk()
-        self._gui.title(self._title)
-        self._gui.resizable(False, False)
+        self._tk = tkinter.Tk()
+        self._tk.title(self._title)
+        self._tk.resizable(False, False)
         logging.info('Server Tools Opend!')
         self.initMenu()
         self.initUI()
-        self._gui.protocol("WM_DELETE_WINDOW", self.onXClick)
+        self._tk.protocol("WM_DELETE_WINDOW", self.onXClick)
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
-            self._gui.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
-        self._gui.mainloop()
+            self._tk.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
+        self._tk.mainloop()
 
     def initUI(self):
-        gui = self._gui
+        gui = self._tk
 
         tkinter.Label(gui, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
         frame = tkinter.Frame(bd=1, relief="sunken")
@@ -196,12 +200,15 @@ class GUI:
             self._btnTest = self.createBtn("测试", self.onTestClick, pack=True)
         GUITool.GridConfig(frame3, padx=5)
 
+        # 批量创建服务器插件
+        plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)
+
     def onUpdate(self):
         self.refreshServerList()
-        self._gui.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
+        self._tk.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
     def onXClick(self):
-        self._gui.destroy()
+        self._tk.destroy()
         logging.info('Server Tools Closed!')
 
     def setSelectAllServerItems(self, st):
@@ -218,11 +225,11 @@ class GUI:
         self.refreshServerList()
 
     def initMenu(self):
-        mebubar = tkinter.Menu(self._gui)
+        mebubar = tkinter.Menu(self._tk)
         mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
         mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
         mebubar.add_command(label="刷新", command=self.reload)
-        self._gui.config(menu=mebubar)
+        self._tk.config(menu=mebubar)
 
     def refreshServerList(self, name=None):
         items = None
@@ -246,13 +253,8 @@ class GUI:
         CFG.Load()
 
     def createBtn(self, text, func, parent=None, pack=None, grid=None):
-        parent = parent if parent else self._gui
-        btn = tkinter.Button(parent, text=text, command=func, padx=5)
-        if pack:
-            btn.pack()
-        elif grid:
-            btn.grid(row=grid[0], column=grid[1])
-        return btn
+        parent = parent if parent else self._tk
+        return GUITool.createBtn(text, func, parent, pack, grid)
 
     def createServerItem(self, idx, name):
         frame = self._frameServers
@@ -287,8 +289,8 @@ class GUI:
         server.getCfg().showInEditor()
 
     def onCreateServerClick(self):
-        ServerManager.createServer()
-        self.initServerList()
+        if ServerManager.createServer():
+            self.initServerList()
 
     def onUpdateServerClick(self):
         for v in self.getSelectedServers():
@@ -365,8 +367,11 @@ class GUITool:
         return list(filter(_filter, root.children.values()))
 
     @staticmethod
-    def MessageBox(str, title='提示'):
-        tkMessageBox.showinfo(title=title, message=str)
+    def MessageBox(str, title='提示', ask=False):
+        if ask:
+            return tkMessageBox.askokcancel(title=title, message=str)
+        else:
+            return tkMessageBox.showinfo(title=title, message=str)
 
     @staticmethod
     def GridConfig(root, padx=5, pady=0):
@@ -376,6 +381,15 @@ class GUITool:
         for row in range(rows):
             root.grid_rowconfigure(row, pad=pady)
         return root
+
+    @staticmethod
+    def createBtn(text, func, parent=None, pack=None, grid=None):
+        btn = tkinter.Button(parent, text=text, command=func, padx=5)
+        if pack:
+            btn.pack()
+        elif grid:
+            btn.grid(row=grid[0], column=grid[1])
+        return btn
 
 
 class STool:
@@ -419,14 +433,17 @@ class STool:
         return idx + 1
 
     @staticmethod
-    def createServerDir():
+    def createServerDir(id):
         # 根据服务器模板创建一个新服（目录拷贝）
-        dirname = "gameserver%d" % (STool.getNextServerDirID())
+        dirname = "gameserver%d" % (id)
+        if STool.isServerDirExists(dirname):
+            logging.error('创建服务器目录[%s]失败，目录已存在', dirname)
+            return False, dirname
         shutil.copytree(CFG.SERVER_TEMPLATE,
                         os.path.join(CFG.SERVER_ROOT, dirname),
                         ignore=shutil.ignore_patterns('*.log'))
         logging.info('创建服务器目录[%s]成功', dirname)
-        return dirname
+        return True, dirname
 
     @staticmethod
     def updateServerDir(name, filelist=('data', 'GameServer.exe', 'GameConfig.ini')):
@@ -515,8 +532,12 @@ class ServerManager:
     __servers = dict()
 
     @abstractmethod
-    def createServer():
-        dirname = STool.createServerDir()
+    def createServer(id=None):
+        id = id if id is not None else STool.getNextServerDirID()
+        suc, dirname = STool.createServerDir(id)
+        if not suc:
+            GUITool.MessageBox('创建服务器目录失败，检查目录{}是否存在'.format(dirname))
+            return None
         server = ServerV3(dirname, bCreateNew=True)
         ServerManager.__servers[dirname] = server
         return server
@@ -646,7 +667,7 @@ class ServerV3(IServer):
             return self._window
 
         if CFG.FIND_WINDOW_COMPATIBLE_MODE:
-            return self.findWindowEx()
+            return self.__findWindowEx()
 
         if not self.isRunning():
             GUITool.MessageBox('服务器[{0}]未开启'.format(self._servercfg.name))
@@ -661,7 +682,7 @@ class ServerV3(IServer):
             GUITool.MessageBox('查找服务器窗口失败')
         return None
 
-    def findWindowEx(self):
+    def __findWindowEx(self):
         '''
         gameserver.exe运行方式有两种：
         第一种： start gameserver.exe 这种能够通过窗口标题查找 gameserver.exe 成为孤儿进程
@@ -847,8 +868,6 @@ def main():
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:
-        global CFG
-        CFG = CMD_INI('cmd.ini')
         assert os.path.exists(CFG.SERVER_ROOT), "服务器根目录不存在"
         assert os.path.exists(CFG.SERVER_TEMPLATE), "服务器模板路径不存在"
         GUI("Server Tools")
