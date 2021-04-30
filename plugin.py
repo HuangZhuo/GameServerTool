@@ -32,14 +32,15 @@ class PluginCreateMultiServers(tkinter.Frame):
         if len(input) == 0:
             GUITool.MessageBox('批量创建输入为空')
             return
-        if input.isnumeric():
-            # print(int(input))
-            ServerManager.createServer(int(input))
-            return
 
         listCreate = []
         err = '匹配序列为空'
         while True:
+            # 10
+            if input.isnumeric():
+                listCreate.append[int(input)]
+                break
+
             # 10-20
             m = re.search(r'^([0-9]+)-([0-9]+)$', input)
             if m:
