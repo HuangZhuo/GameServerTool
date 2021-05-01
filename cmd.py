@@ -533,7 +533,7 @@ class IServer():
 class ServerManager:
     __servers = dict()
 
-    @abstractmethod
+    @staticmethod
     def createServer(id=None):
         id = id if id is not None else STool.getNextServerDirID()
         suc, dirname = STool.createServerDir(id)
@@ -544,13 +544,13 @@ class ServerManager:
         ServerManager.__servers[dirname] = server
         return server
 
-    @abstractmethod
+    @staticmethod
     def getServer(name):
         if not ServerManager.__servers.get(name):
             ServerManager.__servers[name] = ServerV3(name)
         return ServerManager.__servers[name]
 
-    @abstractmethod
+    @staticmethod
     def isDBServerRunning(port):
         # todo:根据端口监听判断数据库是否开启
         pass
@@ -700,6 +700,9 @@ class ServerV3(IServer):
         第二种： gameserver.exe 直接在批处理中执行，这时候窗口标题是 cmd.exe，cmd.exe是父进程，无法通过窗口标题查找
             window = uiautomation.ControlFromHandle(get_hwnds_for_pid(ppid))
         '''
+        if not self.isValid():
+            GUITool.MessageBox('服务器不可用')
+            return None
         if not self.isRunning():
             GUITool.MessageBox('服务器[{0}]未开启'.format(self._servercfg.name))
             return None
