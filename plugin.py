@@ -6,9 +6,9 @@ import tkinter.messagebox as tkMessageBox
 import re
 import logging
 
-from cmd import counter
-from cmd import GUITool
-from cmd import ServerManager
+from main import counter
+from main import GUITool
+from main import ServerManager
 
 
 class PluginCreateMultiServers(tkinter.Frame):

@@ -60,7 +60,7 @@
 - [ ] 将阻塞试for循环优化成任务队列，使得UI有机会及时刷新
 
 ## 打包EXE
-> pyinstaller.exe -F .\cmd.py --noconsole [-i cmd.ico]
+> build.bat
 
 ## DEV_LOG
 ### Action 执行问题
