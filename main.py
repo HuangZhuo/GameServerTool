@@ -184,18 +184,18 @@ class GUI:
 
         frame3 = tkinter.Frame()
         frame3.pack(padx=5, pady=5)
-        nextrow = counter()
-        self.createBtn('模板目录', STool.showServerTemplateInExplorer, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('创建', self.onCreateServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('整包更新', self.onUpdateServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('数据更新', self.onUpdateServerDataClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('开启', self.onStartServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('热更', self.onHotUpdateServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextrow()))
-        self.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextrow()))
+        nextcol = counter()
+        self.createBtn('模板目录', STool.showServerTemplateInExplorer, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('创建', self.onCreateServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('整包更新', self.onUpdateServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('数据更新', self.onUpdateServerDataClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('开启', self.onStartServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('热更', self.onHotUpdateServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextcol()))
+        self.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextcol()))
         if CFG.DEBUG_MODE:
-            self.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextrow()))['bg'] = 'red'
+            self.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'red'
             tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
             self._btnTest = self.createBtn("测试", self.onTestClick, pack=True)
         GUITool.GridConfig(frame3, padx=5)
@@ -264,20 +264,20 @@ class GUI:
         btn.widgetName = name
         btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
         btn.grid(row=idx, column=0, sticky='W')
-        nextrow = counter(1)
+        nextcol = counter(1)
         self.createBtn('目录',
                        lambda: ServerManager.getServer(name).showInExplorer(),
                        parent=frame,
-                       grid=(idx, nextrow()))
-        self.createBtn('配置', lambda: self.onServerConfigClick(name), parent=frame, grid=(idx, nextrow()))
-        self.createBtn('开启', lambda: ServerManager.getServer(name).start(), parent=frame, grid=(idx, nextrow()))
-        self.createBtn('热更', lambda: ServerManager.getServer(name).hotUpdate(), parent=frame, grid=(idx, nextrow()))
-        self.createBtn('重启', lambda: ServerManager.getServer(name).restart(), parent=frame, grid=(idx, nextrow()))
-        self.createBtn('关闭', lambda: ServerManager.getServer(name).exit(), parent=frame, grid=(idx, nextrow()))
+                       grid=(idx, nextcol()))
+        self.createBtn('配置', lambda: self.onServerConfigClick(name), parent=frame, grid=(idx, nextcol()))
+        self.createBtn('开启', lambda: ServerManager.getServer(name).start(), parent=frame, grid=(idx, nextcol()))
+        self.createBtn('热更', lambda: ServerManager.getServer(name).hotUpdate(), parent=frame, grid=(idx, nextcol()))
+        self.createBtn('重启', lambda: ServerManager.getServer(name).restart(), parent=frame, grid=(idx, nextcol()))
+        self.createBtn('关闭', lambda: ServerManager.getServer(name).exit(), parent=frame, grid=(idx, nextcol()))
         self.createBtn('控制台',
                        lambda: ServerManager.getServer(name).showConsoleWindow(),
                        parent=frame,
-                       grid=(idx, nextrow()))
+                       grid=(idx, nextcol()))
 
         return btn
 
