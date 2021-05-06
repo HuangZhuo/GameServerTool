@@ -65,8 +65,7 @@ class GUI:
         GUITool.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextcol()))
         if CFG.DEBUG_MODE:
             GUITool.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'red'
-            tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
-            self._btnTest = GUITool.createBtn("测试", self.onTestClick, parent=self, pack=True)
+            GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
         GUITool.GridConfig(frame3, padx=5)
 
         # 批量创建服务器插件
