@@ -6,12 +6,16 @@ import tkinter.messagebox as tkMessageBox
 import re
 import logging
 
-from main import counter
-from main import GUITool
-from main import ServerManager
+from core import ServerManager
+from common import counter
+from common import GUITool
 
 
-class PluginCreateMultiServers(tkinter.Frame):
+class IPlugin:
+    pass
+
+
+class PluginCreateMultiServers(tkinter.Frame, IPlugin):
     def __init__(self, gui):
         tkinter.Frame.__init__(self)
         self._gui = gui
@@ -38,7 +42,7 @@ class PluginCreateMultiServers(tkinter.Frame):
         while True:
             # 10
             if input.isnumeric():
-                listCreate.append[int(input)]
+                listCreate.append(int(input))
                 break
 
             # 10-20
@@ -72,7 +76,7 @@ class PluginCreateMultiServers(tkinter.Frame):
             GUITool.MessageBox(err)
             return
 
-        if not GUITool.MessageBox('即将创建以下服务器：{}'.format(listCreate), ask=True):
+        if not GUITool.MessageBox('是否创建以下服务器：{}'.format(listCreate), ask=True):
             return
 
         logging.info('开始批量创建服务器：{}'.format(listCreate))
