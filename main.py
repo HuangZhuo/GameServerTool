@@ -89,6 +89,7 @@ class GUI:
         mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
         mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
         mebubar.add_command(label="刷新", command=self.reload)
+        mebubar.add_command(label="重启", command=self.restart)
         self._tk.config(menu=mebubar)
 
     def refreshServerList(self, name=None):
@@ -97,6 +98,14 @@ class GUI:
     def reload(self):
         ServerManager.clear()
         CFG.Load()
+
+    def restart(self):
+        try:
+            os.system('start {}'.format(sys.executable))
+            os.sys.exit(0)
+        except NameError as e:
+            logging.info(repr(e))
+            pass
 
     def onCreateServerClick(self):
         if ServerManager.createServer():
