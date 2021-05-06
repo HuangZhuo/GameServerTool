@@ -4,6 +4,7 @@
 import tkinter
 import tkinter.messagebox as tkMessageBox
 import configparser
+import logging
 
 
 def get_hwnds_for_pid(pid):

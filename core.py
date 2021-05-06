@@ -27,6 +27,7 @@ class CMD_INI(INI):
 
     @property
     def TEXT_EDITOR_PATH(self):
+        # 文本编辑器配置
         return self.Get('CMD', 'TEXT_EDITOR_PATH', 'C:/Program Files (x86)/Notepad++/notepad++.exe')
 
     @property
