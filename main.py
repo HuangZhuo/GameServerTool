@@ -40,7 +40,7 @@ class GUI:
         gui = self._tk
 
         tkinter.Label(gui, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
-        self._frameServers = view.ServerListViewFixed(self)
+        self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
         frame2 = tkinter.Frame()
@@ -70,7 +70,8 @@ class GUI:
         GUITool.GridConfig(frame3, padx=5)
 
         # 批量创建服务器插件
-        plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)
+        if CFG.GetBool('Plugin', 'EnableCreateMultiServers', True):
+            plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)
 
     def onUpdate(self):
         self.refreshServerList()
@@ -156,10 +157,7 @@ class GUI:
 
 
 def main():
-    logging.basicConfig(filename='cmd.log',
-                        filemode='w',
-                        level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename='cmd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:
         assert os.path.exists(CFG.SERVER_ROOT), "服务器根目录不存在"

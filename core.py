@@ -87,6 +87,12 @@ class CMD_INI(INI):
     def GetAction(self, key):
         return self.Get('Actions', key, None)
 
+    def GetPlugin(self, key):
+        return self.Get('Plugin', key, None)
+
+    def GetView(self, key):
+        return self.Get('View', key, None)
+
 
 CFG = CMD_INI('cmd.ini')
 
@@ -138,9 +144,7 @@ class STool:
         if STool.isServerDirExists(dirname):
             logging.error('创建服务器目录[%s]失败，目录已存在', dirname)
             return False, dirname
-        shutil.copytree(CFG.SERVER_TEMPLATE,
-                        os.path.join(CFG.SERVER_ROOT, dirname),
-                        ignore=shutil.ignore_patterns('*.log'))
+        shutil.copytree(CFG.SERVER_TEMPLATE, os.path.join(CFG.SERVER_ROOT, dirname), ignore=shutil.ignore_patterns('*.log'))
         logging.info('创建服务器目录[%s]成功', dirname)
         return True, dirname
 
@@ -304,8 +308,7 @@ class ServerV3(IServer):
         if CFG.COMBINE_SERVER_WINDOWS_IN_TASKBAR:
             start_bat_path = os.path.join(self._serverPath, 'start.bat')
             with open(start_bat_path, 'w') as f:
-                f.write('title {0}({1}) && gameserver /console && exit'.format(self._servercfg.name,
-                                                                               self._servercfg.title))
+                f.write('title {0}({1}) && gameserver /console && exit'.format(self._servercfg.name, self._servercfg.title))
             proc = subprocess.Popen('start {0}'.format('start.bat'), shell=True, cwd=self._serverPath)
             proc.wait()
         else:
