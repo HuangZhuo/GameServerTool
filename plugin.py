@@ -6,6 +6,7 @@ import tkinter.messagebox as tkMessageBox
 import re
 import logging
 
+from core import STool
 from core import ServerManager
 from common import counter
 from common import GUITool
@@ -23,12 +24,13 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         self.initUI()
 
     def initUI(self):
-        nextrow = counter()
-        tkinter.Label(self, text='批量创建:').grid(row=0, column=nextrow())
+        nextcol = counter()
+        tkinter.Label(self, text='批量创建:').grid(row=0, column=nextcol())
         self._edit = tkinter.Entry(self, width=16)
-        self._edit.grid(row=0, column=nextrow())
-        GUITool.createBtn('执行', self.onCreateMultiServerClick, parent=self, grid=(0, nextrow()))
-        tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='red').grid(row=0, column=nextrow())
+        self._edit.grid(row=0, column=nextcol())
+        self._edit.bind("<Return>", lambda _: self.onCreateMultiServerClick())
+        GUITool.createBtn('执行', self.onCreateMultiServerClick, parent=self, grid=(0, nextcol()))
+        tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='red').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
     def onCreateMultiServerClick(self):
@@ -102,12 +104,13 @@ class PluginExecuteCommand(tkinter.Frame, IPlugin):
         self.initUI()
 
     def initUI(self):
-        nextrow = counter()
-        tkinter.Label(self, text='输入命令:').grid(row=0, column=nextrow())
+        nextcol = counter()
+        tkinter.Label(self, text='输入命令:').grid(row=0, column=nextcol())
         self._edit = tkinter.Entry(self, width=16)
-        self._edit.grid(row=0, column=nextrow())
-        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextrow()))
-        tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='red').grid(row=0, column=nextrow())
+        self._edit.grid(row=0, column=nextcol())
+        self._edit.bind("<Return>", lambda _: self.onExecuteClick())
+        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextcol()))
+        tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='red').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
     def onExecuteClick(self):
@@ -141,14 +144,55 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
         self.initUI()
 
     def initUI(self):
-        nextrow = counter()
-        GUITool.createBtn('全选', lambda: self.doSelect(PluginServerSelector.FILTER_ALL), parent=self, grid=(0, nextrow()))
-        GUITool.createBtn('全不选', lambda: self.doSelect(PluginServerSelector.FILTER_NONE), parent=self, grid=(0, nextrow()))
-        GUITool.createBtn('运行中', lambda: self.doSelect(PluginServerSelector.FILTER_RUNNING), parent=self, grid=(0, nextrow()))
-        GUITool.createBtn('已关闭', lambda: self.doSelect(PluginServerSelector.FILTER_CLOSED), parent=self, grid=(0, nextrow()))
+        nextcol = counter()
+        GUITool.createBtn('全选', lambda: self.doSelect(PluginServerSelector.FILTER_ALL), parent=self, grid=(0, nextcol()))
+        GUITool.createBtn('全不选', lambda: self.doSelect(PluginServerSelector.FILTER_NONE), parent=self, grid=(0, nextcol()))
+        GUITool.createBtn('运行中', lambda: self.doSelect(PluginServerSelector.FILTER_RUNNING), parent=self, grid=(0, nextcol()))
+        GUITool.createBtn('已关闭', lambda: self.doSelect(PluginServerSelector.FILTER_CLOSED), parent=self, grid=(0, nextcol()))
+        tkinter.Label(self, text='|').grid(row=0, column=nextcol())
+        tkinter.Label(self, text='选择范围:').grid(row=0, column=nextcol())
+        self._edit = tkinter.Entry(self, width=10)
+        self._edit.grid(row=0, column=nextcol())
+        self._edit.bind("<Return>", lambda _: self.onExecuteClick())
+        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextcol()))
         GUITool.GridConfig(self, padx=5)
+
+    def onExecuteClick(self):
+        input = self._edit.get().strip()
+        if len(input) == 0:
+            GUITool.MessageBox('输入为空')
+            return
+
+        begin = end = None
+        err = '匹配序列为空'
+        while True:
+            # 10
+            if input.isnumeric():
+                begin = end = int(input)
+                break
+
+            # 10-20
+            m = re.search(r'^([0-9]+)-([0-9]+)$', input)
+            if m:
+                tmp = [int(n) for n in m.groups()]
+                begin, end = tmp[0], tmp[1]
+                break
+
+            err = '不支持的输入格式'
+            break
+
+        if not begin or not end:
+            err = '输入[{0}]错误：{1}'.format(input, err)
+            logging.error(err)
+            GUITool.MessageBox(err)
+            return
+
+        self.doSelectRange(begin, end)
 
     def doSelect(self, ft):
         servers = self._serverListView.getAll()
         servers = list(filter(ft, servers))
         self._serverListView.setSelected(servers)
+
+    def doSelectRange(self, begin, end):
+        self.doSelect(lambda s: STool.getServerDirID(s) in range(begin, end + 1))
