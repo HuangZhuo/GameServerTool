@@ -153,7 +153,8 @@ class GUI:
 
     def onRestartServerClick(self):
         for v in self.getSelectedServers():
-            ServerManager.getServer(v).restart()
+            if ServerManager.getServer(v).isRunning():
+                ServerManager.getServer(v).restart()
 
     def onTestClick(self):
         Action('Test').execute(7, 8, 9)
