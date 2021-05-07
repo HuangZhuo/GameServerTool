@@ -15,6 +15,7 @@ class IPlugin:
     pass
 
 
+# 批量创建服务器插件
 class PluginCreateMultiServers(tkinter.Frame, IPlugin):
     def __init__(self, gui):
         tkinter.Frame.__init__(self)
@@ -27,7 +28,7 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         self._edit = tkinter.Entry(self, width=16)
         self._edit.grid(row=0, column=nextrow())
         GUITool.createBtn('执行', self.onCreateMultiServerClick, parent=self, grid=(0, nextrow()))
-        tkinter.Label(self, text='*支持输入格式:10|10-20|10,20', fg='red').grid(row=0, column=nextrow())
+        tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='red').grid(row=0, column=nextrow())
         GUITool.GridConfig(self, padx=5)
 
     def onCreateMultiServerClick(self):
@@ -91,3 +92,63 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         if len(listSuc) > 0:
             logging.info('完成批量创建服务器：{}'.format(listSuc))
             self._gui.initServerList()
+
+
+# 控制台执行命令插件
+class PluginExecuteCommand(tkinter.Frame, IPlugin):
+    def __init__(self, gui):
+        tkinter.Frame.__init__(self)
+        self._gui = gui
+        self.initUI()
+
+    def initUI(self):
+        nextrow = counter()
+        tkinter.Label(self, text='输入命令:').grid(row=0, column=nextrow())
+        self._edit = tkinter.Entry(self, width=16)
+        self._edit.grid(row=0, column=nextrow())
+        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextrow()))
+        tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='red').grid(row=0, column=nextrow())
+        GUITool.GridConfig(self, padx=5)
+
+    def onExecuteClick(self):
+        input = self._edit.get().strip()
+        print('onExecuteClick', input)
+        if len(input) == 0:
+            GUITool.MessageBox('命令输入为空')
+            return
+        servers = self._gui.getSelectedServers()
+        servers = map(ServerManager.getServer, servers)
+        servers = list(filter(lambda s: s.isRunning(), servers))
+        if len(servers) == 0:
+            GUITool.MessageBox('没有选择运行中的服务器')
+            return
+        for s in servers:
+            if s.isRunning():
+                s.execute(input)
+
+
+# 服务器选择器
+class PluginServerSelector(tkinter.Frame, IPlugin):
+    FILTER_ALL = lambda s: True
+    FILTER_NONE = lambda s: False
+    FILTER_RUNNING = lambda s: ServerManager.getServer(s).isRunning()
+    FILTER_CLOSED = lambda s: not ServerManager.getServer(s).isRunning()
+
+    def __init__(self, gui):
+        tkinter.Frame.__init__(self)
+        # self._gui = gui
+        self._serverListView = gui.getServerListView()
+        self.initUI()
+
+    def initUI(self):
+        nextrow = counter()
+        GUITool.createBtn('全选', lambda: self.doSelect(PluginServerSelector.FILTER_ALL), parent=self, grid=(0, nextrow()))
+        GUITool.createBtn('全不选', lambda: self.doSelect(PluginServerSelector.FILTER_NONE), parent=self, grid=(0, nextrow()))
+        GUITool.createBtn('运行中', lambda: self.doSelect(PluginServerSelector.FILTER_RUNNING), parent=self, grid=(0, nextrow()))
+        GUITool.createBtn('已关闭', lambda: self.doSelect(PluginServerSelector.FILTER_CLOSED), parent=self, grid=(0, nextrow()))
+        GUITool.GridConfig(self, padx=5)
+
+    def doSelect(self, ft):
+        servers = self._serverListView.getAll()
+        servers = list(filter(ft, servers))
+        self._serverListView.setSelected(servers)

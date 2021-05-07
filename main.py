@@ -43,11 +43,7 @@ class GUI:
         self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
-        frame2 = tkinter.Frame()
-        frame2.pack(padx=5, pady=5)
-        GUITool.createBtn('全选', lambda: self._frameServers.selectAll(), parent=frame2, grid=(0, 0))
-        GUITool.createBtn('全不选', lambda: self._frameServers.deselectAll(), parent=frame2, grid=(0, 1))
-        GUITool.GridConfig(frame2, padx=5)
+        plugin.PluginServerSelector(self).pack(padx=5, pady=5)
 
         tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
 
@@ -71,6 +67,9 @@ class GUI:
         # 批量创建服务器插件
         if CFG.GetBool('Plugin', 'EnableCreateMultiServers', True):
             plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)
+        # 执行命令插件
+        if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
+            plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
 
     def onUpdate(self):
         self.refreshServerList()
@@ -162,6 +161,9 @@ class GUI:
 
     def getSelectedServers(self):
         return self._frameServers.getSelected()
+
+    def getServerListView(self) -> view.IServerListView:
+        return self._frameServers
 
 
 def main():

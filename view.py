@@ -18,11 +18,15 @@ class IServerListView:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def init():
+    def init(self):
         raise NotImplementedError
 
     @abstractmethod
-    def refresh():
+    def refresh(self, name=None):
+        raise NotImplementedError
+
+    @abstractmethod
+    def getAll(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -35,6 +39,10 @@ class IServerListView:
 
     @abstractmethod
     def getSelected(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def setSelected(self, slt=[]):
         raise NotImplementedError
 
 
@@ -95,6 +103,11 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
             return
         server.getCfg().showInEditor()
 
+    def getAll(self):
+        ret = GUITool.getChildsByType(self, tkinter.Checkbutton)
+        ret = list(map(lambda w: w.widgetName, ret))
+        return ret
+
     def selectAll(self):
         for w in GUITool.getChildsByType(self, tkinter.Checkbutton):
             w.select()
@@ -109,12 +122,17 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
         ret = list(map(lambda w: w.widgetName, ret))
         return ret
 
+    def setSelected(self, slt=[]):
+        for w in GUITool.getChildsByType(self, tkinter.Checkbutton):
+            servername = w.widgetName
+            w.select() if servername in slt else w.deselect()
+
 
 # 多列扩展视图（兼容单列）
 class ServerListViewFixedMultiCol(ServerListViewFixed):
     def createServerItem(self, idx, name):
         # 默认使用单列
-        COL_NUM = CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1)
+        COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
         LESS_OPTIONS = CFG.GetBool('View', 'FixedMultiCol.LESS_OPTIONS', False)
         GRID_COUNT_PER_ITEM = 4 if LESS_OPTIONS else 8
 
