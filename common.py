@@ -5,6 +5,7 @@ import tkinter
 import tkinter.messagebox as tkMessageBox
 import configparser
 import logging
+import time
 
 
 def get_hwnds_for_pid(pid):
@@ -128,3 +129,25 @@ class INI:
     def GetItems(self, section):
         # 返回(k,v)元组列表
         return self.__parser.items(section) if self.__parser.has_section(section) else []
+
+
+class Profiler:
+    __t = 0
+
+    @staticmethod
+    def START():
+        # assert Profiler.__t == 0
+        Profiler.__t = time.perf_counter()
+
+    @staticmethod
+    def FINISH(text, notify=False):
+        # assert Profiler.__t != 0
+        t = time.perf_counter() - Profiler.__t
+        msg = '{}，耗时 {:.2f}s'.format(text, t)
+        if notify:
+            GUITool.MessageBox(msg)
+        Profiler.__t = 0
+
+    @staticmethod
+    def ABORT():
+        Profiler.__t == 0

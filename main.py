@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 """
-    基于控制台窗口的服务器管理
-    ref: https://cn.bing.com/search?q=python+uiautomation
-    ref：https://github.com/yinkaisheng/Python-UIAutomation-for-Windows
+    传奇游戏服多服运维工具
 """
 
 import tkinter
@@ -14,6 +12,7 @@ import logging, traceback
 
 from common import counter
 from common import GUITool
+from common import Profiler
 from core import Action
 from core import STool
 from core import ServerManager
@@ -110,17 +109,22 @@ class GUI:
             self.initServerList()
 
     def onUpdateServerClick(self):
+        Profiler.START()
         for v in self.getSelectedServers():
             server = ServerManager.getServer(v)
             if server.isRunning():
                 GUITool.MessageBox('请先关闭服务器')
+                Profiler.ABORT()
                 return
             STool.updateServerDir(v)
+        Profiler.FINISH('整包更新完成', notify=True)
 
     def onUpdateServerDataClick(self):
+        Profiler.START()
         for v in self.getSelectedServers():
             server = ServerManager.getServer(v)
             STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
+        Profiler.FINISH('数据更新完成', notify=True)
 
     def onStartServerClick(self):
         for v in self.getSelectedServers():
