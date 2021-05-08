@@ -200,7 +200,11 @@ class Action:
         with open(tmpfilename, 'r') as f:
             for line in f.readlines():
                 logging.info('> {}'.format(line.strip()))
-        os.remove(tmpfilename)
+        try:
+            os.remove(tmpfilename)
+        except PermissionError as e:
+            logging.error(repr(e))
+            pass
         logging.info('Action[%s]执行结束', self._name)
 
 

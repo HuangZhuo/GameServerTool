@@ -35,6 +35,7 @@ class GUI:
         self._tk.protocol("WM_DELETE_WINDOW", self.onXClick)
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
             self._tk.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
+        Action('OpenTool').execute()
         self._tk.mainloop()
 
     def initUI(self):
