@@ -205,16 +205,17 @@ class GM_INI(INI):
     def __init__(self):
         INI.__init__(self, 'gm.ini')
 
+    def getInputs(self):
+        return self.GetItems('INPUT')
+
     def getTotalCmds(self) -> dict:
         return dict(self.GetItems('GM'))
 
-    @property
-    def ROLE_NAME(self):
-        return self.Get('Data', 'ROLE_NAME')
+    def getData(self, key):
+        return self.Get('SAVE', key)
 
-    @ROLE_NAME.setter
-    def ROLE_NAME(self, str):
-        self.Set('Data', 'ROLE_NAME')
+    def setData(self, key, value):
+        return self.Set('SAVE', key, value)
 
 
 # 控制台执行命令插件
@@ -223,54 +224,63 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         tkinter.Frame.__init__(self)
         # self._gui = gui
         self._serverListView = gui.getServerListView()
-        self._gmCfg = GM_INI()
-        self._gmCmds = self._gmCfg.getTotalCmds()
+        self._ini = GM_INI()
+        self._gmCmds = self._ini.getTotalCmds()
         self.initUI()
 
     def initUI(self):
-        nextcol = counter()
-        tkinter.Label(self, text='角色名:').grid(row=0, column=nextcol(), sticky='E')
-        self._editName = tkinter.Entry(self, width=24)
-        self._editName.grid(row=0, column=nextcol(), sticky='W')
-        self._editName.bind("<KeyRelease>", self.refresh)
-        self._editName.insert(0, self._gmCfg.ROLE_NAME)
+        nextrow = counter()
 
-        nextcol = counter()
-        tkinter.Label(self, text='参数:').grid(row=1, column=nextcol(), sticky='E')
-        self._editArg0 = tkinter.Entry(self, width=24)
-        self._editArg0.grid(row=1, column=nextcol(), sticky='W')
-        self._editArg0.bind("<KeyRelease>", self.refresh)
-        self._editArg0.insert(0, 100)
+        self._entries = {}
+        for v in self._ini.getInputs():
+            text, varname = v[0], v[1]
 
+            row = nextrow()
+            nextcol = counter()
+            tkinter.Label(self, text='{}:'.format(text)).grid(row=row, column=nextcol(), sticky='E')
+            entry = tkinter.Entry(self, width=24)
+            entry.grid(row=row, column=nextcol(), sticky='W')
+            entry.bind("<KeyRelease>", lambda _, text=text, varname=varname: self.onInput(text, varname))
+            entry.insert(0, self._ini.getData(text))
+            self._entries[varname] = entry
+
+        row = nextrow()
         nextcol = counter()
-        tkinter.Label(self, text='命令选项:').grid(row=2, column=nextcol(), sticky='E')
+        tkinter.Label(self, text='命令选项:').grid(row=row, column=nextcol(), sticky='E')
         comboxCmds = ttk.Combobox(self, textvariable=tkinter.StringVar(), width=22)
         comboxCmds["values"] = tuple(self._gmCmds.keys())
         comboxCmds.current(0)
         comboxCmds.bind("<<ComboboxSelected>>", self.refresh)
-        comboxCmds.grid(row=2, column=nextcol(), sticky='W')
+        comboxCmds.grid(row=row, column=nextcol(), sticky='W')
         self._comboxCmds = comboxCmds
-        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(2, nextcol()))
+        GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(row, nextcol()))
 
+        row = nextrow()
         nextcol = counter()
-        tkinter.Label(self, text='命令预览:').grid(row=3, column=nextcol(), sticky='E')
+        tkinter.Label(self, text='命令预览:').grid(row=row, column=nextcol(), sticky='E')
         self._lblCmd = tkinter.Label(self, text='GM')
-        self._lblCmd.grid(row=3, column=nextcol(), columnspan=2, sticky='W')
+        self._lblCmd.grid(row=row, column=nextcol(), columnspan=2, sticky='W')
 
         GUITool.GridConfig(self, padx=5, pady=5)
         self.refresh()
 
     def getCmd(self):
         cmd = self._gmCmds.get(self._comboxCmds.get())
-        name = self._editName.get().strip()
-        arg0 = self._editArg0.get().strip()
-        if len(name) > 0:
-            cmd = cmd.replace('${rolename}', str(name))
-        if len(arg0) > 0:
-            cmd = cmd.replace('${arg0}', str(arg0))
+        for varname, entry in self._entries.items():
+            input = entry.get().strip()
+            if len(input) > 0:
+                cmd = cmd.replace(varname, str(input))
 
         isComplete = cmd.find('${') < 0
         return cmd, isComplete
+
+    def onInput(self, text, varname):
+        entry = self._entries[varname]
+        input = entry.get().strip()
+        if len(input) > 0:
+            # save to data
+            self._ini.setData(text, input)
+        self.refresh()
 
     def refresh(self, *args):
         cmd, complete = self.getCmd()
@@ -278,6 +288,7 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         self._lblCmd['fg'] = 'green' if complete else 'red'
 
     def onExecuteClick(self):
+        self._ini.Save()
         servers = self._serverListView.getAll()
         servers = map(ServerManager.getServer, servers)
         servers = list(filter(lambda s: s.isRunning(), servers))
@@ -286,8 +297,8 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
             return
         for s in servers:
             if s.isRunning():
-                cmd = self.getCmd()
-                if cmd.find('${') >= 0:
+                cmd, complete = self.getCmd()
+                if not complete:
                     GUITool.MessageBox('命令参数不完整')
                     return
                 if s.execute(cmd):
