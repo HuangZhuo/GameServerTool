@@ -40,30 +40,30 @@ class GUI:
     def initUI(self):
         gui = self._tk
 
-        tkinter.Label(gui, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
+        # tkinter.Label(gui, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
         self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
-        plugin.PluginServerSelector(self).pack(padx=5, pady=5)
+        # plugin.PluginServerSelector(self).pack(padx=5, pady=5)
 
         tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
 
-        frame3 = tkinter.Frame()
-        frame3.pack(padx=5, pady=5)
-        nextcol = counter()
-        GUITool.createBtn('模板目录', STool.showServerTemplateInExplorer, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('创建', self.onCreateServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('整包更新', self.onUpdateServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('数据更新', self.onUpdateServerDataClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('开启', self.onStartServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('热更', self.onHotUpdateServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextcol()))
-        GUITool.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextcol()))
-        if CFG.DEBUG_MODE:
-            GUITool.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'red'
-            GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
-        GUITool.GridConfig(frame3, padx=5)
+        # frame3 = tkinter.Frame()
+        # frame3.pack(padx=5, pady=5)
+        # nextcol = counter()
+        # GUITool.createBtn('模板目录', STool.showServerTemplateInExplorer, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('创建', self.onCreateServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('整包更新', self.onUpdateServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('数据更新', self.onUpdateServerDataClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('开启', self.onStartServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('热更', self.onHotUpdateServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextcol()))
+        # GUITool.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextcol()))
+        # if CFG.DEBUG_MODE:
+        #     GUITool.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'red'
+        #     GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
+        # GUITool.GridConfig(frame3, padx=5)
 
         # 批量创建服务器插件
         if CFG.GetBool('Plugin', 'EnableCreateMultiServers', True):

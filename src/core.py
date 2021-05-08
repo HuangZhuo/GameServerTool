@@ -121,8 +121,8 @@ class STool:
     def getServerDirID(dirname):
         # 获取服务器路径中的数字ID
         import re
-        m = re.search(r'^gameserver([0-9]+)$', os.path.basename(dirname))
-        return int(m.group(1)) if m else -1
+        m = re.search(r'^gameserver$', os.path.basename(dirname))
+        return 0 if m else -1
 
     @staticmethod
     def getNextServerDirID():
