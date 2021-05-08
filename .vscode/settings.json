@@ -7,6 +7,7 @@
         "**/build": true,
         "**/dist": true,
         "*.pyc": true,
-        "**/.DS_Store": true
+        "**/.DS_Store": true,
+        "**/__pycache__": true
     }
 }
