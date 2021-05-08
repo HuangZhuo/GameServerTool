@@ -70,7 +70,7 @@ class GUI:
             plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)
         # 执行命令插件
         if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
-            plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
+            plugin.PluginExecuteCommandEx(self).pack(padx=5, pady=5)
 
     def onUpdate(self):
         self.refreshServerList()
@@ -86,8 +86,8 @@ class GUI:
     def initMenu(self):
         mebubar = tkinter.Menu(self._tk)
         mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
-        mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
-        mebubar.add_command(label="刷新", command=self.reload)
+        mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('gm.ini'))
+        # mebubar.add_command(label="刷新", command=self.reload)
         mebubar.add_command(label="重启", command=self.restart)
         self._tk.config(menu=mebubar)
 
