@@ -20,12 +20,14 @@ from core import CFG
 import view
 import plugin
 
+VERSION_INFO = '3.0'
+
 
 class GUI:
     def __init__(self, title):
         self._title = title
         self._tk = tkinter.Tk()
-        self._tk.title(self._title)
+        self._tk.title('{} {}'.format(self._title, VERSION_INFO))
         self._tk.resizable(False, False)
         logging.info('Server Tools Opend!')
         self.initMenu()

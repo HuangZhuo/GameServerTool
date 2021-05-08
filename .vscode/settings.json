@@ -2,6 +2,7 @@
     "python.pythonPath": "C:\\Python38\\python.exe",
     "python.formatting.provider": "yapf",
     "python.formatting.yapfArgs": ["--style", "{column_limit: 130}"],
+    "python.autoComplete.extraPaths": ["src"],
 
     "files.exclude": {
         "**/build": true,
