@@ -6,7 +6,7 @@ if not "%val%" == "LISTENING" (
     timeout 1 /NOBREAK
 )
 
-for /f "tokens=2" %%i in ('tasklist^|findstr "GameServer.exe"') do taskkill /pid %%i /f
+for /f "tokens=2" %%i in ('tasklist^|findstr "GameServer.exe"') do exit 0 /f
 timeout 1 /NOBREAK
 
 cd %RUNTIME%gameserver\
@@ -15,4 +15,4 @@ del /q GameServer.exe
 copy GameServer.exe.×îÐÂ°æ±¾ GameServer.exe
 
 @REM start /min gameserver /console && exit
-start gameserver /console && exit
+start gameserver /console && exit 0
