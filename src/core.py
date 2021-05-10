@@ -76,11 +76,6 @@ class CMD_INI(INI):
         return self.GetBool('CMD', 'DEBUG_MODE', False)
 
     @property
-    def FIND_WINDOW_COMPATIBLE_MODE(self):
-        # 兼容模式查找窗口
-        return self.GetBool('CMD', 'FIND_WINDOW_COMPATIBLE_MODE', True)
-
-    @property
     def COMBINE_SERVER_WINDOWS_IN_TASKBAR(self):
         # 是否在任务栏合并服务器窗口（只支持兼容模式查找）
         return self.GetBool('CMD', 'COMBINE_SERVER_WINDOWS_IN_TASKBAR', True)
@@ -362,26 +357,6 @@ class ServerV3(IServer):
         return self.execute('lua')
 
     def findWindow(self):
-        if self._window and self._window.Exists():
-            return self._window
-
-        if CFG.FIND_WINDOW_COMPATIBLE_MODE:
-            return self.__findWindowEx()
-
-        if not self.isRunning():
-            GUITool.MessageBox('服务器[{0}]未开启'.format(self._servercfg.name))
-            return None
-        try:
-            self._window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
-            # 目前不支持通过ProcessId查找窗口，参数会被忽略
-            # window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', ProcessId=self._pid)
-            return self._window
-        except LookupError as e:
-            logging.error(repr(e))
-            GUITool.MessageBox('查找服务器窗口失败')
-        return None
-
-    def __findWindowEx(self):
         '''
         gameserver.exe运行方式有两种：
         第一种： start gameserver.exe 这种能够通过窗口标题查找 gameserver.exe 成为孤儿进程
@@ -397,10 +372,15 @@ class ServerV3(IServer):
             return None
         if psutil.pid_exists(self._pid):
             try:
+                if self._window and self._window.Exists():
+                    return self._window
                 p = psutil.Process(self._pid)
-                ppid = p.ppid()
+                # if not p.parent():
+                #     self._window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
+                #     return self._window
+
                 # 检查是否作为cmd的子进程运行
-                hwnd = get_hwnds_for_pid(ppid if psutil.pid_exists(ppid) else self._pid)
+                hwnd = get_hwnds_for_pid(p.pid() if not p.parent() else p.ppid())
                 if hwnd > 0:
                     self._window = uiautomation.ControlFromHandle(hwnd)
                     return self._window
