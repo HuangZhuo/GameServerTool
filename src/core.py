@@ -380,7 +380,7 @@ class ServerV3(IServer):
                 #     return self._window
 
                 # 检查是否作为cmd的子进程运行
-                hwnd = get_hwnds_for_pid(p.pid() if not p.parent() else p.ppid())
+                hwnd = get_hwnds_for_pid(p.pid if not p.parent() else p.ppid())
                 if hwnd > 0:
                     self._window = uiautomation.ControlFromHandle(hwnd)
                     return self._window
@@ -430,7 +430,7 @@ class ServerV3(IServer):
         if self._pid != 0 and psutil.pid_exists(self._pid):
             try:
                 p = psutil.Process(self._pid)
-                if self._exePath.lower() == p.exe().lower():
+                if p.exe() and os.path.samefile(self._exePath, p.exe()):
                     return True
             except:
                 pass
@@ -441,9 +441,11 @@ class ServerV3(IServer):
             try:
                 p = psutil.Process(pid)
                 # if re.search(self._exePath, p.exe(), re.IGNORECASE):
-                if self._exePath.lower() == p.exe().lower():
+                if p.exe() and os.path.samefile(self._exePath, p.exe()):
                     self._pid = pid
                     return True
+            except FileNotFoundError as e:
+                pass
             except psutil.NoSuchProcess as e:
                 pass
             except psutil.AccessDenied as e:
