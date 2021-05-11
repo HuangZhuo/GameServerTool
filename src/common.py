@@ -92,15 +92,17 @@ class INI:
     def filename(self):
         return self.__filename
 
+    @property
+    def paser(self):
+        return self.__parser
+
     def Load(self):
         if self.__loaded:
             logging.info('配置文件[%s]重新读取', self.__filename)
-        try:
-            self.__parser.read(self.__filename)
-            self.__loaded = True
-        except Exception as e:
-            GUITool.MessageBox('配置文件[%s]读取出错' % (self.__filename))
-            raise e
+        read_ok = self.__parser.read(self.__filename)
+        self.__loaded = len(read_ok) > 0
+        if not self.__loaded:
+            logging.warning('配置文件[%s]读取失败', self.__filename)
 
     def Save(self):
         with open(self.__filename, 'w+') as f:
