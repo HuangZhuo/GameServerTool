@@ -4,6 +4,7 @@
 import tkinter
 import tkinter.messagebox as tkMessageBox
 import tkinter.ttk as ttk
+import os
 import re
 import logging
 
@@ -211,6 +212,10 @@ class GM_INI(INI):
     def getTotalCmds(self) -> dict:
         return dict(self.GetItems('GM'))
 
+    def getInputSelectInfo(self, key):
+        ret = self.Get('INPUT_SELECT', key)
+        return ret if len(ret) > 0 else None
+
     def getData(self, key):
         return self.Get('SAVE', key)
 
@@ -243,6 +248,10 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
             entry.bind("<KeyRelease>", lambda _, text=text, varname=varname: self.onInput(text, varname))
             entry.insert(0, self._ini.getData(text))
             self._entries[varname] = entry
+
+            select = self._ini.getInputSelectInfo(text)
+            if select:
+                GUITool.createBtn('选择', lambda select=select: self.onSelectClick(select), parent=self, grid=(row, nextcol()))
 
         row = nextrow()
         nextcol = counter()
@@ -282,7 +291,22 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
             self._ini.setData(text, input)
         self.refresh()
 
+    def onSelectClick(self, select):
+        # 选择功能先简单实现为打开文件
+        try:
+            ret = os.system('start {}'.format(select))
+            assert ret == 0
+        except:
+            STool.showFileInTextEditor(select)
+
     def refresh(self, *args):
+        rawcmd = self._gmCmds.get(self._comboxCmds.get())
+        for varname, entry in self._entries.items():
+            if rawcmd.find(varname) == -1:
+                entry['state'] = tkinter.DISABLED
+            else:
+                entry['state'] = tkinter.NORMAL
+
         cmd, complete = self.getCmd()
         self._lblCmd['text'] = cmd
         self._lblCmd['fg'] = 'green' if complete else 'red'
