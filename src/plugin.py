@@ -203,8 +203,8 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
 
 
 class GM_INI(INI):
-    def __init__(self):
-        INI.__init__(self, 'gm.ini')
+    def __init__(self, filename='gm.ini'):
+        super().__init__(filename)
 
     def getInputs(self):
         return self.GetItems('INPUT')
@@ -216,11 +216,18 @@ class GM_INI(INI):
         ret = self.Get('INPUT_SELECT', key)
         return ret if len(ret) > 0 else None
 
-    def getData(self, key):
-        return self.Get('SAVE', key)
 
-    def setData(self, key, value):
-        return self.Set('SAVE', key, value)
+class GM_SAVE(INI):
+    def __init__(self, filename='gm.save'):
+        super().__init__(filename)
+        if not self.paser.has_section('SAVE'):
+            self.paser.add_section('SAVE')
+
+    def Get(self, key):
+        return super().Get('SAVE', key, fallback="")
+
+    def Set(self, key, value):
+        return super().Set('SAVE', key, value)
 
 
 # 控制台执行命令插件
@@ -230,6 +237,7 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         # self._gui = gui
         self._serverListView = gui.getServerListView()
         self._ini = GM_INI()
+        self._db = GM_SAVE()
         self._gmCmds = self._ini.getTotalCmds()
         self.initUI()
 
@@ -246,7 +254,7 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
             entry = tkinter.Entry(self, width=24)
             entry.grid(row=row, column=nextcol(), sticky='W')
             entry.bind("<KeyRelease>", lambda _, text=text, varname=varname: self.onInput(text, varname))
-            entry.insert(0, self._ini.getData(text))
+            entry.insert(0, self._db.Get(text))
             self._entries[varname] = entry
 
             select = self._ini.getInputSelectInfo(text)
@@ -263,12 +271,14 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         comboxCmds.grid(row=row, column=nextcol(), sticky='W')
         self._comboxCmds = comboxCmds
         GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(row, nextcol()))
+        GUITool.createBtn('新增', lambda: STool.showFileInTextEditor(self._ini.filename), parent=self, grid=(row, nextcol()))
+        tkinter.Label(self, text='*重启生效', fg='gray').grid(row=row, column=nextcol())
 
         row = nextrow()
         nextcol = counter()
         tkinter.Label(self, text='命令预览:').grid(row=row, column=nextcol(), sticky='E')
         self._lblCmd = tkinter.Label(self, text='GM')
-        self._lblCmd.grid(row=row, column=nextcol(), columnspan=2, sticky='W')
+        self._lblCmd.grid(row=row, column=nextcol(), columnspan=4, sticky='W')
 
         GUITool.GridConfig(self, padx=5, pady=5)
         self.refresh()
@@ -288,7 +298,7 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         input = entry.get().strip()
         if len(input) > 0:
             # save to data
-            self._ini.setData(text, input)
+            self._db.Set(text, input)
         self.refresh()
 
     def onSelectClick(self, select):
@@ -312,7 +322,7 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
         self._lblCmd['fg'] = 'green' if complete else 'red'
 
     def onExecuteClick(self):
-        self._ini.Save()
+        self._db.Save()
         servers = self._serverListView.getAll()
         servers = map(ServerManager.getServer, servers)
         servers = list(filter(lambda s: s.isRunning(), servers))
@@ -320,10 +330,11 @@ class PluginExecuteCommandEx(tkinter.Frame, IPlugin):
             GUITool.MessageBox('服务器未开启')
             return
         for s in servers:
-            if s.isRunning():
-                cmd, complete = self.getCmd()
-                if not complete:
-                    GUITool.MessageBox('命令参数不完整')
-                    return
-                if s.execute(cmd):
-                    s.hideConsoleWindow()
+            if not s.isRunning():
+                continue
+            cmd, complete = self.getCmd()
+            if not complete:
+                GUITool.MessageBox('命令参数不完整')
+                return
+            if s.execute(cmd):
+                s.hideConsoleWindow()
