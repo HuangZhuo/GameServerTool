@@ -20,7 +20,7 @@ from core import CFG
 import view
 import plugin
 
-VERSION_INFO = '3.0'
+VERSION_INFO = '3.1'
 
 
 class GUI:
@@ -65,6 +65,9 @@ class GUI:
             GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
         GUITool.GridConfig(frame3, padx=5)
 
+        # 显示扩展功能
+        if CFG.GetBool('Plugin', 'EnableExtendOperations', True):
+            plugin.PluginExtendOperations(self).pack(padx=5, pady=5)
         # 批量创建服务器插件
         if CFG.GetBool('Plugin', 'EnableCreateMultiServers', True):
             plugin.PluginCreateMultiServers(self).pack(padx=5, pady=5)

@@ -30,7 +30,7 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         self._edit.grid(row=0, column=nextcol())
         self._edit.bind("<Return>", lambda _: self.onCreateMultiServerClick())
         GUITool.createBtn('执行', self.onCreateMultiServerClick, parent=self, grid=(0, nextcol()))
-        tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='red').grid(row=0, column=nextcol())
+        tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
     def onCreateMultiServerClick(self):
@@ -110,7 +110,7 @@ class PluginExecuteCommand(tkinter.Frame, IPlugin):
         self._edit.grid(row=0, column=nextcol())
         self._edit.bind("<Return>", lambda _: self.onExecuteClick())
         GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextcol()))
-        tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='red').grid(row=0, column=nextcol())
+        tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
     def onExecuteClick(self):
@@ -196,3 +196,37 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
 
     def doSelectRange(self, begin, end):
         self.doSelect(lambda s: STool.getServerDirID(s) in range(begin, end + 1))
+
+
+# 扩展操作
+class PluginExtendOperations(tkinter.Frame, IPlugin):
+    def __init__(self, gui):
+        tkinter.Frame.__init__(self)
+        self._gui = gui
+        self.initUI()
+
+    def initUI(self):
+        nextcol = counter()
+        GUITool.createBtn('关闭->整包更新->开启', self.onUpdateClick, parent=self, grid=(0, nextcol()))
+        GUITool.createBtn('数据更新->热更', self.onHotUpdateClick, parent=self, grid=(0, nextcol()))
+        GUITool.GridConfig(self, padx=5)
+
+    def onUpdateClick(self):
+        for v in self._gui.getSelectedServers():
+            server = ServerManager.getServer(v)
+            if not server.isValid():
+                continue
+            if server.isRunning():
+                if not server.exit():
+                    break
+            STool.updateServerDir(v)
+            server.start()
+
+    def onHotUpdateClick(self):
+        for v in self._gui.getSelectedServers():
+            server = ServerManager.getServer(v)
+            if not server.isValid():
+                continue
+            STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
+            if server.isRunning():
+                server.hotUpdate()
