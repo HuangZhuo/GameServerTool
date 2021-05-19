@@ -19,6 +19,7 @@ from core import ServerManager
 from core import CFG
 import view
 import plugin
+import icon
 
 VERSION_INFO = '3.2'
 
@@ -27,6 +28,7 @@ class GUI:
     def __init__(self, title):
         self._title = title
         self._tk = tkinter.Tk()
+        icon.USE(self._tk.iconbitmap)
         self._tk.title('{} {}'.format(self._title, VERSION_INFO))
         self._tk.resizable(False, False)
         logging.info('Server Tools Opend!')
