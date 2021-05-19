@@ -386,7 +386,7 @@ class ServerV3(IServer):
                     self._window = uiautomation.ControlFromHandle(hwnd)
                     return self._window
                 else:
-                    logging.error('查找窗口句柄失败：pid=%d，ppid=%d(exist=%s)', self._pid, ppid, str(psutil.pid_exists(ppid)))
+                    logging.error('查找窗口句柄失败：pid=%d，ppid=%d(exist=%s)', p.pid, p.ppid(), str(psutil.pid_exists(p.ppid())))
             except LookupError as e:
                 logging.error(repr(e))
                 GUITool.MessageBox('查找服务器窗口失败')
