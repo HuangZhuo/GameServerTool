@@ -7,6 +7,7 @@ import logging
 import uiautomation
 import time
 import shutil
+import re
 from abc import ABCMeta, abstractmethod
 
 from common import get_hwnds_for_pid
@@ -417,7 +418,9 @@ class ServerV3(IServer):
                     'pid': self._pid,
                 }
             else:
-                return '[%s(%s)]:%s' % (self.getCfg().name, self.getCfg().title, '运行中' if self.isRunning() else '已关闭')
+                ver = self.getVersion()
+                return '[{}({}) V{}]:{}'.format(self.getCfg().name,
+                                                self.getCfg().title, ver if ver else '?', '运行中' if self.isRunning() else '已关闭')
         else:
             return '服务器不可用'
 
@@ -477,6 +480,19 @@ class ServerV3(IServer):
 
     def showInExplorer(self):
         subprocess.Popen('explorer %s' % (self._serverPath))
+
+    def getVersion(self):
+        # fixme: code more flexible
+        filename = os.path.join(self._serverPath, 'data/long/script/init.lua')
+        if not os.path.exists(filename):
+            filename = os.path.join(self._serverPath, '../../data/long/script/init.lua')
+            if not os.path.exists(filename):
+                return None
+        str = ''
+        with open(filename, 'r', encoding='utf8') as f:
+            str = f.read()
+        m = re.search(r'[Vv]([0-9]+.[0-9]+.[0-9]+)', str)
+        return m.group(1) if m else None
 
 
 # GameServer.ini 管理

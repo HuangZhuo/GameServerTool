@@ -20,7 +20,7 @@ from core import CFG
 import view
 import plugin
 
-VERSION_INFO = '3.1'
+VERSION_INFO = '3.2'
 
 
 class GUI:

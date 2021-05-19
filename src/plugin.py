@@ -169,25 +169,30 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
             # 10
             if input.isnumeric():
                 begin = end = int(input)
-                break
+                self.doSelectRange(begin, end)
+                return
 
             # 10-20
             m = re.search(r'^([0-9]+)-([0-9]+)$', input)
             if m:
                 tmp = [int(n) for n in m.groups()]
                 begin, end = tmp[0], tmp[1]
-                break
+                self.doSelectRange(begin, end)
+                return
+
+            # 版本号
+            m = re.search(r'^[Vv]([0-9.]+)$', input)
+            if m:
+                self.doSelectVersion(m.group(1))
+                return
 
             err = '不支持的输入格式'
             break
 
-        if not begin or not end:
-            err = '输入[{0}]错误：{1}'.format(input, err)
-            logging.error(err)
-            GUITool.MessageBox(err)
-            return
-
-        self.doSelectRange(begin, end)
+        err = '输入[{0}]错误：{1}'.format(input, err)
+        logging.error(err)
+        GUITool.MessageBox(err)
+        return
 
     def doSelect(self, ft):
         servers = self._serverListView.getAll()
@@ -196,6 +201,9 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
 
     def doSelectRange(self, begin, end):
         self.doSelect(lambda s: STool.getServerDirID(s) in range(begin, end + 1))
+
+    def doSelectVersion(self, version):
+        self.doSelect(lambda s: ServerManager.getServer(s).getVersion() == version)
 
 
 # 扩展操作
