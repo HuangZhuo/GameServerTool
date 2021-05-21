@@ -105,7 +105,7 @@ class GUI:
 
     def restart(self):
         try:
-            os.system('start {}'.format(sys.executable))
+            os.system('start {}'.format(os.sys.executable))
             os.sys.exit(0)
         except NameError as e:
             logging.info(repr(e))
