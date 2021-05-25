@@ -112,14 +112,16 @@ class GUI:
             pass
 
     def onCreateServerClick(self):
-        if ServerManager.createServer():
+        ret, err = ServerManager.createServer()
+        if ret:
             self.initServerList()
+        else:
+            GUITool.MessageBox(err)
 
     def onUpdateServerClick(self):
         Profiler.START()
         for v in self.getSelectedServers():
-            server = ServerManager.getServer(v)
-            if server.isRunning():
+            if ServerManager.getServer(v).isRunning():
                 GUITool.MessageBox('请先关闭服务器')
                 Profiler.ABORT()
                 return
@@ -129,31 +131,46 @@ class GUI:
     def onUpdateServerDataClick(self):
         Profiler.START()
         for v in self.getSelectedServers():
-            server = ServerManager.getServer(v)
             STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
         Profiler.FINISH('数据更新完成', notify=True)
 
     def onStartServerClick(self):
         for v in self.getSelectedServers():
-            if ServerManager.getServer(v).start():
+            ret, err = ServerManager.getServer(v).start()
+            if ret:
                 self.refreshServerList(v)
                 if CFG.SERVER_START_WAIT_TIME > 0:
                     time.sleep(CFG.SERVER_START_WAIT_TIME)
+            else:
+                GUITool.MessageBox(err)
+                break
 
     def onStopServerClick(self):
         for v in self.getSelectedServers():
-            if ServerManager.getServer(v).exit():
+            ret, err = ServerManager.getServer(v).exit()
+            if ret:
                 self.refreshServerList(v)
+            else:
+                GUITool.MessageBox(err)
+                break
 
     def onHideServerConsoleClick(self):
         for v in self.getSelectedServers():
-            if ServerManager.getServer(v).isRunning():
-                ServerManager.getServer(v).hideConsoleWindow()
+            if not ServerManager.getServer(v).isRunning():
+                continue
+            ret, err = ServerManager.getServer(v).hideConsoleWindow()
+            if not ret:
+                GUITool.MessageBox(err)
+                break
 
     def onTerminateServerClick(self):
         for v in self.getSelectedServers():
-            if ServerManager.getServer(v).exit(bForce=True):
+            ret, err = ServerManager.getServer(v).exit(bForce=True)
+            if ret:
                 self.refreshServerList(v)
+            else:
+                GUITool.MessageBox(err)
+                break
 
     def onHotUpdateServerClick(self):
         for v in self.getSelectedServers():
@@ -164,8 +181,12 @@ class GUI:
 
     def onRestartServerClick(self):
         for v in self.getSelectedServers():
-            if ServerManager.getServer(v).isRunning():
-                ServerManager.getServer(v).restart()
+            if not ServerManager.getServer(v).isRunning():
+                continue
+            ret, err = ServerManager.getServer(v).restart()
+            if not ret:
+                GUITool.MessageBox(err)
+                break
 
     def onTestClick(self):
         Action('Test').execute(7, 8, 9)

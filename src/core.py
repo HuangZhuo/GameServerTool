@@ -12,7 +12,6 @@ from abc import ABCMeta, abstractmethod
 
 from common import get_hwnds_for_pid
 from common import INI
-from common import GUITool
 
 
 class CMD_INI(INI):
@@ -137,7 +136,7 @@ class STool:
     @staticmethod
     def createServerDir(id):
         # 根据服务器模板创建一个新服（目录拷贝）
-        dirname = "gameserver%d" % (id)
+        dirname = 'gameserver{}'.format(id)
         if STool.isServerDirExists(dirname):
             logging.error('创建服务器目录[%s]失败，目录已存在', dirname)
             return False, dirname
@@ -225,28 +224,6 @@ class IServer():
         raise NotImplementedError
 
 
-# 这种方式暂时没有走通
-class Server(IServer):
-    def __init__(self):
-        assert (False)
-        SERVER_PATH = 'd:/LegendGame/game/runtime/gameserver'
-        os.chdir(SERVER_PATH)
-        self._proc = subprocess.call(["GameServer.exe", "/console"],
-                                     stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-        print(self._proc.stdout.readlines())
-        # flags = fcntl.fcntl(self.process.stdout, fcntl.F_GETFL)
-        # fcntl.fcntl(self._proc.stdout, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-    def exit(self):
-        self.execute("exit")
-
-    def execute(self, cmd):
-        self._proc.stdin.write(cmd)
-        # self._proc.stdin.flush()
-
-
 class ServerV3(IServer):
     def __init__(self, dirname, bCreateNew=False):
         logging.info('创建服务器对象:%s(bCreateNew=%s)', dirname, str(bCreateNew))
@@ -266,9 +243,9 @@ class ServerV3(IServer):
         self._window = None
         if bCreateNew:
             # 创建新服
-            self.onCreateNew()
+            self._onCreateNew()
 
-    def onCreateNew(self):
+    def _onCreateNew(self):
         if not self.isValid():
             return
 
@@ -295,17 +272,53 @@ class ServerV3(IServer):
         # 执行创建脚本（如果有）
         Action('CreateGameServer').execute(id)
 
+    def _findWindow(self):
+        '''
+        gameserver.exe运行方式有两种：
+        第一种： start gameserver.exe 这种能够通过窗口标题查找 gameserver.exe 成为孤儿进程
+            window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
+        第二种： gameserver.exe 直接在批处理中执行，这时候窗口标题是 cmd.exe，cmd.exe是父进程，无法通过窗口标题查找
+            window = uiautomation.ControlFromHandle(get_hwnds_for_pid(ppid))
+        '''
+        if not self.isValid():
+            return None, '服务器不可用'
+        if not self.isRunning():
+            return None, '服务器[{0}]未开启'.format(self._servercfg.name)
+        err = None
+        if psutil.pid_exists(self._pid):
+            try:
+                if self._window and self._window.Exists():
+                    return self._window, None
+                p = psutil.Process(self._pid)
+                # if not p.parent():
+                #     self._window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
+                #     return self._window
+
+                # 检查是否作为cmd的子进程运行
+                hwnd = get_hwnds_for_pid(p.pid if not p.parent() else p.ppid())
+                if hwnd > 0:
+                    self._window = uiautomation.ControlFromHandle(hwnd)
+                    return self._window, None
+                else:
+                    err = '查找窗口句柄失败：pid={}，ppid={}(exist={})'.format(p.pid, p.ppid(), str(psutil.pid_exists(p.ppid())))
+            except LookupError as e:
+                logging.error(repr(e))
+                err = '查找服务器窗口失败'
+            except Exception as e:
+                logging.error(repr(e))
+                err = '查找失败'
+        return None, err
+
     def start(self):
         if not self.isValid():
-            GUITool.MessageBox('服务器不可用')
-            return False
+            return False, '服务器不可用'
         if self.isRunning():
-            return False
+            return False, '服务器已开启'
 
         if CFG.COMBINE_SERVER_WINDOWS_IN_TASKBAR:
             start_bat_path = os.path.join(self._serverPath, 'start.bat')
             with open(start_bat_path, 'w') as f:
-                f.write('title {0}({1}) && gameserver /console && exit'.format(self._servercfg.name, self._servercfg.title))
+                f.write('title {0}({1}) && gameserver /console \r\n exit'.format(self._servercfg.name, self._servercfg.title))
             proc = subprocess.Popen('start {0}'.format('start.bat'), shell=True, cwd=self._serverPath)
             proc.wait()
         else:
@@ -319,15 +332,14 @@ class ServerV3(IServer):
             time.sleep(CFG.SERVER_START_CHECK_INTERVAL)
             timeout += CFG.SERVER_START_CHECK_INTERVAL
             if timeout >= CFG.SERVER_START_TIMEOUT:
-                GUITool.MessageBox('服务器开启检测超时')
-                return False
+                return False, '服务器开启检测超时'
         if CFG.SERVER_HIDE_ON_START:
             self.hideConsoleWindow()
-        return True
+        return True, None
 
     def exit(self, bForce=False):
         if not self.isRunning():
-            return True
+            return True, None
         if bForce:
             # 强制终止
             try:
@@ -343,70 +355,33 @@ class ServerV3(IServer):
             time.sleep(CFG.SERVER_EXIT_CHECK_INTERVAL)
             timeout += CFG.SERVER_EXIT_CHECK_INTERVAL
             if timeout >= CFG.SERVER_EXIT_TIMEOUT:
-                GUITool.MessageBox('服务器关闭超时，请检查服务器窗口输出')
-                return False
+                return False, '服务器关闭超时，请检查服务器窗口输出'
         logging.info('服务器[%s][%s]关闭成功,耗时%.2f秒', self._dirname, self.getCfg().name, timeout)
-        return True
+        return True, None
 
     def restart(self):
-        self.exit()
-        return self.start()
+        ret, err = self.exit()
+        if ret:
+            ret, err = self.start()
+        return ret, err
 
     def hotUpdate(self):
-        if not self.isRunning():
-            return False
         return self.execute('lua')
 
-    def findWindow(self):
-        '''
-        gameserver.exe运行方式有两种：
-        第一种： start gameserver.exe 这种能够通过窗口标题查找 gameserver.exe 成为孤儿进程
-            window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
-        第二种： gameserver.exe 直接在批处理中执行，这时候窗口标题是 cmd.exe，cmd.exe是父进程，无法通过窗口标题查找
-            window = uiautomation.ControlFromHandle(get_hwnds_for_pid(ppid))
-        '''
-        if not self.isValid():
-            GUITool.MessageBox('服务器不可用')
-            return None
-        if not self.isRunning():
-            GUITool.MessageBox('服务器[{0}]未开启'.format(self._servercfg.name))
-            return None
-        if psutil.pid_exists(self._pid):
-            try:
-                if self._window and self._window.Exists():
-                    return self._window
-                p = psutil.Process(self._pid)
-                # if not p.parent():
-                #     self._window = uiautomation.WindowControl(ClassName='ConsoleWindowClass', Name=self._exePath)
-                #     return self._window
-
-                # 检查是否作为cmd的子进程运行
-                hwnd = get_hwnds_for_pid(p.pid if not p.parent() else p.ppid())
-                if hwnd > 0:
-                    self._window = uiautomation.ControlFromHandle(hwnd)
-                    return self._window
-                else:
-                    logging.error('查找窗口句柄失败：pid=%d，ppid=%d(exist=%s)', p.pid, p.ppid(), str(psutil.pid_exists(p.ppid())))
-            except LookupError as e:
-                logging.error(repr(e))
-                GUITool.MessageBox('查找服务器窗口失败')
-            except Exception as e:
-                logging.error(repr(e))
-                pass
-        return None
-
     def execute(self, cmd):
-        window = self.findWindow()
-        if window:
-            window.SwitchToThisWindow()
-            window.SendKeys(cmd)
-            window.SendKeys('{Enter}')
-            logging.info('服务器[%s][%s][pid=%s]执行命令[%s]', self._dirname, self.getCfg().name, self._pid, cmd)
-            # fixme: badcode
-            if cmd != 'exit' and CFG.SERVER_EXECUTE_CMD_WAIT_TIME > 0:
-                time.sleep(CFG.SERVER_EXECUTE_CMD_WAIT_TIME)
-            return True
-        return False
+        if not self.isRunning():
+            return False, '服务器未开启'
+        window, err = self._findWindow()
+        if not window:
+            return False, err
+        window.SwitchToThisWindow()
+        window.SendKeys(cmd)
+        window.SendKeys('{Enter}')
+        logging.info('服务器[%s][%s][pid=%s]执行命令[%s]', self._dirname, self.getCfg().name, self._pid, cmd)
+        # fixme: badcode
+        if cmd != 'exit' and CFG.SERVER_EXECUTE_CMD_WAIT_TIME > 0:
+            time.sleep(CFG.SERVER_EXECUTE_CMD_WAIT_TIME)
+        return True, None
 
     def getInfo(self, debug=False):
         if self.isValid():
@@ -459,27 +434,36 @@ class ServerV3(IServer):
 
     def getLastError(self):
         # 获取服务器运行错误日志
-        return False
+        raise NotImplementedError('功能暂未实现')
 
     def getCfg(self):
         return self._servercfg
 
     def showConsoleWindow(self):
-        window = self.findWindow()
+        window, err = self._findWindow()
         if window:
             window.SwitchToThisWindow()
-            return True
-        return False
+            return True, None
+        return False, err
 
     def hideConsoleWindow(self):
-        window = self.findWindow()
+        window, err = self._findWindow()
         if window:
             window.Minimize()
-            return True
-        return False
+            return True, None
+        return False, err
 
     def showInExplorer(self):
+        if not os.path.exists(self._serverPath):
+            return False, '服务器目录[{}]不存在'.format(self._serverPath)
         subprocess.Popen('explorer %s' % (self._serverPath))
+        return True, None
+
+    def showConfigInEditor(self):
+        if not self.isValid():
+            return False, '服务器不可用'
+        self.getCfg().showInEditor()
+        return True, None
 
     def getVersion(self):
         # fixme: code more flexible
@@ -493,6 +477,12 @@ class ServerV3(IServer):
             str = f.read()
         m = re.search(r'[Vv]([0-9]+.[0-9]+.[0-9]+)', str)
         return m.group(1) if m else None
+
+    def call(self, funcname, *args):
+        api = getattr(self, funcname)
+        if not api:
+            return False, NameError('[{}]接口不存在'.format(funcname))
+        return api(*args)
 
 
 # GameServer.ini 管理
@@ -524,11 +514,10 @@ class ServerManager:
         id = id if id is not None else STool.getNextServerDirID()
         suc, dirname = STool.createServerDir(id)
         if not suc:
-            GUITool.MessageBox('创建服务器目录失败，检查目录{}是否存在'.format(dirname))
-            return None
+            return None, '创建服务器目录失败，检查目录{}是否存在'.format(dirname)
         server = ServerV3(dirname, bCreateNew=True)
         ServerManager.__servers[dirname] = server
-        return server
+        return server, None
 
     @staticmethod
     def getServer(name) -> ServerV3:
@@ -539,7 +528,7 @@ class ServerManager:
     @staticmethod
     def isDBServerRunning(port):
         # todo:根据端口监听判断数据库是否开启
-        pass
+        raise NotImplementedError('功能暂未实现')
 
     @staticmethod
     def clear():

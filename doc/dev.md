@@ -1,5 +1,9 @@
 # DEV
 
+## REF
+https://docs.python.org/zh-cn/3/library/tkinter.html
+
+
 ## TODO
 - [x] 服务器状态实时刷新
     * 每秒1次，支持配置

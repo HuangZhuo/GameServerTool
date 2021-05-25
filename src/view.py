@@ -71,13 +71,13 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
         btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
         btn.grid(row=idx, column=0, sticky='W')
         nextcol = counter(1)
-        GUITool.createBtn('目录', lambda: ServerManager.getServer(name).showInExplorer(), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('配置', lambda: self.onServerConfigClick(name), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('开启', lambda: ServerManager.getServer(name).start(), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('热更', lambda: ServerManager.getServer(name).hotUpdate(), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('重启', lambda: ServerManager.getServer(name).restart(), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('关闭', lambda: ServerManager.getServer(name).exit(), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('控制台', lambda: ServerManager.getServer(name).showConsoleWindow(), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('控制台', lambda: self.onClick(name, 'showConsoleWindow'), parent=frame, grid=(idx, nextcol()))
 
     def refresh(self, name=None):
         items = None
@@ -96,12 +96,10 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
             w['text'] = server.getInfo(debug=CFG.DEBUG_MODE)
             w['fg'] = 'green' if server.isRunning() else 'black'
 
-    def onServerConfigClick(self, name):
-        server = ServerManager.getServer(name)
-        if not server.isValid():
-            GUITool.MessageBox('服务器不可用')
-            return
-        server.getCfg().showInEditor()
+    def onClick(self, name, func):
+        ret, err = ServerManager.getServer(name).call(func)
+        if not ret:
+            GUITool.MessageBox(err)
 
     def getAll(self):
         ret = GUITool.getChildsByType(self, tkinter.Checkbutton)
@@ -146,11 +144,11 @@ class ServerListViewFixedMultiCol(ServerListViewFixed):
         btn.widgetName = name
         btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
         btn.grid(row=row, column=nextcol(), sticky='W')
-        GUITool.createBtn('目录', lambda: ServerManager.getServer(name).showInExplorer(), parent=frame, grid=(row, nextcol()))
-        GUITool.createBtn('配置', lambda: self.onServerConfigClick(name), parent=frame, grid=(row, nextcol()))
+        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(idx, nextcol()))
         if not LESS_OPTIONS:
-            GUITool.createBtn('开启', lambda: ServerManager.getServer(name).start(), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('热更', lambda: ServerManager.getServer(name).hotUpdate(), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('重启', lambda: ServerManager.getServer(name).restart(), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('关闭', lambda: ServerManager.getServer(name).exit(), parent=frame, grid=(row, nextcol()))
-        GUITool.createBtn('控制台', lambda: ServerManager.getServer(name).showConsoleWindow(), parent=frame, grid=(row, nextcol()))
+            GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(idx, nextcol()))
+            GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(idx, nextcol()))
+            GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(idx, nextcol()))
+            GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('控制台', lambda: self.onClick(name, 'showConsoleWindow'), parent=frame, grid=(row, nextcol()))

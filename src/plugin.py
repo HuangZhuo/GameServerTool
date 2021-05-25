@@ -85,10 +85,12 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         logging.info('开始批量创建服务器：{}'.format(listCreate))
         listSuc = []
         for id in listCreate:
-            if ServerManager.createServer(id):
+            ret, err = ServerManager.createServer(id)
+            if ret:
                 listSuc.append(id)
             else:
                 logging.error('创建服务器{}失败，终止批量创建'.format(id))
+                GUITool.MessageBox(err)
                 break
 
         if len(listSuc) > 0:
@@ -126,8 +128,12 @@ class PluginExecuteCommand(tkinter.Frame, IPlugin):
             GUITool.MessageBox('没有选择运行中的服务器')
             return
         for s in servers:
-            if s.isRunning():
-                s.execute(input)
+            if not s.isRunning():
+                continue
+            ret, err = s.execute(input)
+            if not ret:
+                GUITool.MessageBox(err)
+                break
 
 
 # 服务器选择器
@@ -225,7 +231,9 @@ class PluginExtendOperations(tkinter.Frame, IPlugin):
             if not server.isValid():
                 continue
             if server.isRunning():
-                if not server.exit():
+                ret, err = server.exit()
+                if not ret:
+                    GUITool.MessageBox(err)
                     break
             STool.updateServerDir(v)
             server.start()
