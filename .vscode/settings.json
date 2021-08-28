@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "C:\\Python38\\python.exe",
+    "python.defaultInterpreterPath": "python",
     "python.formatting.provider": "yapf",
     "python.formatting.yapfArgs": ["--style", "{column_limit: 130}"],
     "python.autoComplete.extraPaths": ["src"],
@@ -13,5 +13,7 @@
     },
     "python.analysis.extraPaths": [
         "src"
-    ]
+    ],
+
+    "terminal.integrated.defaultProfile.windows": "Git Bash"
 }

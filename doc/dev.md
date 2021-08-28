@@ -105,3 +105,6 @@ https://docs.python.org/zh-cn/3/library/tkinter.html
         t = time.perf_counter() - t
         GUITool.MessageBox('更新完成，耗时 {:.2f}s'.format(t))
 ```
+
+### 项目名称
+之前项目有一个很不合理的名字`CMD`，因为当时游戏服都是控制台启动，于是这个应用相当于是一个控制台窗口管理工具。后面改名为`GameServerTool`，更为直观。

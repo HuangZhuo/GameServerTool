@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 import tkinter
-import tkinter.messagebox as tkMessageBox
 import re
 import logging
 

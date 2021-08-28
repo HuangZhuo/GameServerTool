@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 
 import tkinter
-import tkinter.messagebox as tkMessageBox
 import math
 from abc import ABCMeta, abstractmethod
 
@@ -128,15 +127,15 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
 
 # 多列扩展视图（兼容单列）
 class ServerListViewFixedMultiCol(ServerListViewFixed):
-    def createServerItem(self, idx, name):
-        # 默认使用单列
-        COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
-        LESS_OPTIONS = CFG.GetBool('View', 'FixedMultiCol.LESS_OPTIONS', False)
-        GRID_COUNT_PER_ITEM = 4 if LESS_OPTIONS else 8
+    # 默认使用单列
+    COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
+    LESS_OPTIONS = CFG.GetBool('View', 'FixedMultiCol.LESS_OPTIONS', False)
+    GRID_COUNT_PER_ITEM = 4 if LESS_OPTIONS else 8
 
+    def createServerItem(self, idx, name):
         frame = self
-        row = math.floor(idx / COL_NUM)
-        nextcol = counter((idx % COL_NUM) * GRID_COUNT_PER_ITEM)
+        row = math.floor(idx / self.COL_NUM)
+        nextcol = counter((idx % self.COL_NUM) * self.GRID_COUNT_PER_ITEM)
 
         var = tkinter.BooleanVar(value=True)
         btn = tkinter.Checkbutton(frame, text=name, variable=var, onvalue=True, offvalue=False)
@@ -144,11 +143,11 @@ class ServerListViewFixedMultiCol(ServerListViewFixed):
         btn.widgetName = name
         btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
         btn.grid(row=row, column=nextcol(), sticky='W')
-        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(idx, nextcol()))
-        if not LESS_OPTIONS:
-            GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(idx, nextcol()))
-            GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(idx, nextcol()))
-            GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(idx, nextcol()))
-            GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(idx, nextcol()))
+        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(row, nextcol()))
+        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(row, nextcol()))
+        if not self.LESS_OPTIONS:
+            GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(row, nextcol()))
+            GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(row, nextcol()))
+            GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(row, nextcol()))
+            GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(row, nextcol()))
         GUITool.createBtn('控制台', lambda: self.onClick(name, 'showConsoleWindow'), parent=frame, grid=(row, nextcol()))

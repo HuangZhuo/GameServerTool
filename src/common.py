@@ -29,11 +29,13 @@ def get_hwnds_for_pid(pid):
 
 def counter(start=0):
     # 简单自增计数器
-    idx = [start - 1]
+    start -= 1
 
     def _plus():
-        idx[0] += 1
-        return idx[0]
+        # inspired by 'python-cheatsheet'
+        nonlocal start
+        start += 1
+        return start
 
     return _plus
 

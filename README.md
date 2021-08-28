@@ -1,16 +1,20 @@
-# CMD
+# GameServerTool
 传奇游戏服多服运维工具
 
-## 打包EXE
-> build.bat
-### 环境需求
-- Python3
-- 依赖库
+## 功能
 
-| pip install  | usage                |
+
+## 版本历史
+
+
+## 打包EXE
+python3 only!
+
+| 依赖库       | usage                |
 | ------------ | -------------------- |
-| pyinstaller  | 输出`exe`文件        |
 | uiautomation | 窗口查找，命令输入   |
 | psutil       | 进程管理             |
-| pypiwin32    | 通过进程查找窗口句柄 |
+| pywin32      | 通过进程查找窗口句柄 |
+
+> build.bat
 
