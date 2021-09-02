@@ -8,6 +8,8 @@ import uiautomation
 import time
 import shutil
 import re
+import socket
+from hashlib import md5
 from abc import ABCMeta, abstractmethod
 
 from common import get_hwnds_for_pid
@@ -347,7 +349,7 @@ class ServerV3(IServer):
             except:
                 pass
         else:
-            self.execute('exit')
+            self.execute_w('exit')
 
         # 阻塞，等完全关闭后再返回
         timeout = 0
@@ -371,17 +373,43 @@ class ServerV3(IServer):
     def execute(self, cmd):
         if not self.isRunning():
             return False, '服务器未开启'
+        resp = self.execute_s(cmd)
+        logging.info('服务器[%s][%s][pid=%s]执行命令[%s]|结果[%s]', self._dirname, self.getCfg().name, self._pid, cmd, resp)
+        return True, None
+
+    def execute_w(self, cmd):
+        '''
+        查找窗口，模拟向游戏服控制台窗口键入命令，无法获取后台返回值
+        '''
+        # assert (self.isRunning())
         window, err = self._findWindow()
         if not window:
             return False, err
         window.SwitchToThisWindow()
-        window.SendKeys(cmd)
-        window.SendKeys('{Enter}')
+        window.SendKeys(cmd + '{Enter}')
         logging.info('服务器[%s][%s][pid=%s]执行命令[%s]', self._dirname, self.getCfg().name, self._pid, cmd)
         # fixme: badcode
         if cmd != 'exit' and CFG.SERVER_EXECUTE_CMD_WAIT_TIME > 0:
             time.sleep(CFG.SERVER_EXECUTE_CMD_WAIT_TIME)
         return True, None
+
+    def execute_s(self, cmd):
+        '''
+        不查找窗口，通过socket连接向游戏服发送命令，并返回结果
+        这种方式只支持游戏服[DoSystemCommand]中的命令，不支持exit（退出游戏服）
+        （参考了后台跟游戏服通信方式）
+        '''
+        # assert (self.isRunning())
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.SOL_TCP)
+        s.connect(('localhost', self.getCfg().masterPort))
+
+        sign = cmd + self.getCfg().masterKey
+        sign = md5(sign.encode()).hexdigest()
+        msg = f'{sign}{cmd}\n'
+        s.send(msg.encode())
+        resp = s.recv(1024)
+        s.close()
+        return resp.decode().strip()
 
     def getInfo(self, debug=False):
         if self.isValid():
@@ -504,6 +532,14 @@ class ServerConfig(INI):
     @property
     def serverID(self):
         return self.GetInt('server', 'server_id')
+
+    @property
+    def masterPort(self):
+        return self.GetInt('master', 'port')
+
+    @property
+    def masterKey(self):
+        return self.Get('master', 'key')
 
 
 class ServerManager:
