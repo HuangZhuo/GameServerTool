@@ -143,7 +143,7 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
     FILTER_CLOSED = lambda s: not ServerManager.getServer(s).isRunning()
 
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
+        tkinter.Frame.__init__(self, gui)
         # self._gui = gui
         self._serverListView = gui.getServerListView()
         self.initUI()

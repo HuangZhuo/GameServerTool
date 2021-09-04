@@ -9,6 +9,9 @@ import time
 import shutil
 import re
 import socket
+import json
+from datetime import datetime
+from enum import Enum
 from hashlib import md5
 from abc import ABCMeta, abstractmethod
 
@@ -206,6 +209,157 @@ class Action:
         logging.info('Action[%s]执行结束', self._name)
 
 
+class DB:
+    '''
+    采取json保存的简单数据库，支持键值对存储
+    '''
+    def __init__(self, dbfile) -> None:
+        self._dbfile = dbfile
+        self._data = dict()
+        # 不存在则创建DB文件
+        if not os.path.exists(dbfile):
+            with open(dbfile, 'w') as f:
+                f.write('{}')
+        with open(dbfile, 'r', encoding='utf-8') as f:
+            # todo: wrong json format
+            content = f.read()
+            if len(content) > 0:
+                self._data = json.loads(content)
+
+    def get(self, k):
+        return self._data.get(k)
+
+    def set(self, k, v):
+        if v == None and k in self._data:
+            # rm storage
+            self._data.pop(k)
+        else:
+            self._data[k] = v
+
+    def save(self):
+        with open(self._dbfile, 'w', encoding='utf-8') as f:
+            json.dump(self._data, f, ensure_ascii=False, indent=4)
+
+
+class PlanType(str, Enum):
+    NONE = '无计划'
+    START = '开启'
+    EXIT = '关闭'
+    RESTART = '重启'
+
+
+class Plan:
+    '''
+    计划任务
+    '''
+    TIME_FMT = '%Y-%m-%d %H:%M:%S'
+
+    def __init__(self, db: dict = None) -> None:
+        self._plan = PlanType.NONE
+        self._time = None
+        if db:
+            # 检查数据有效性
+            self._plan = PlanType(db.get('plan'))
+            time = datetime.strptime(db.get('time'), self.TIME_FMT)
+            now = datetime.now()
+            if now > time:
+                # 清理过期任务
+                self._plan = PlanType.NONE
+            else:
+                self._time = time
+
+    def __str__(self) -> str:
+        if self._plan == PlanType.NONE:
+            return '无'
+        return '[{}]{}({})'.format(self._plan.value, self._time, self.getLeftSecs())
+
+    @property
+    def type(self):
+        return self._plan
+
+    @property
+    def name(self):
+        return self._plan.value
+
+    @property
+    def empty(self):
+        return self._plan == PlanType.NONE
+
+    def getLeftSecs(self):
+        now = datetime.now().replace(microsecond=0)
+        secs = (self._time - now).total_seconds()
+        return int(secs)
+
+    def set(self, plan: PlanType, time: datetime):
+        # 检查数据有效性
+        self._plan = plan
+        self._time = time
+
+    def clear(self):
+        self._plan = PlanType.NONE
+
+    def get(self):
+        if self._plan == PlanType.NONE:
+            return None
+        else:
+            return {
+                'plan': self._plan.value,
+                'time': self._time.strftime(self.TIME_FMT),
+            }
+
+
+class PlanManager:
+    '''
+    计划任务管理
+    '''
+    __instance = None
+
+    @classmethod
+    def getInstance(cls):
+        if not cls.__instance:
+            cls.__instance = cls()
+        return cls.__instance
+
+    def __init__(self) -> None:
+        dbfile = CFG.Get('Plan', 'DB', 'plan.json')
+        self._db = DB(dbfile)
+        self._plans = dict()
+
+    def getPlan(self, servername) -> Plan:
+        if not self._plans.get(servername):
+            self._plans[servername] = Plan(self._db.get(servername))
+        return self._plans[servername]
+
+    def save(self):
+        for s, plan in self._plans.items():
+            if plan.empty:
+                self._db.set(s, None)
+            else:
+                self._db.set(s, plan.get())
+        self._db.save()
+
+    def check(self):
+        for s, plan in self._plans.items():
+            if plan.empty:
+                continue
+            if plan.getLeftSecs() <= 0:
+                # print('执行任务')
+                server = ServerManager.getServer(s)
+                if plan.type == PlanType.START:
+                    server.start()
+                elif plan.type == PlanType.EXIT:
+                    server.exit()
+                elif plan.type == PlanType.RESTART:
+                    server.restart()
+                else:
+                    logging.error('无效的计划任务类型[%s]', plan.name)
+                logging.info('服务器[%s]执行计划任务[%s]', s, plan.name)
+                plan.clear()
+                self.save()
+                # break为了一次tick只执行一个计划任务
+                break
+
+
 # 基于控制台的服务器接口
 class IServer():
     __metaclass__ = ABCMeta
@@ -373,9 +527,9 @@ class ServerV3(IServer):
     def execute(self, cmd):
         if not self.isRunning():
             return False, '服务器未开启'
-        resp = self.execute_s(cmd)
+        ret, resp = self.execute_s(cmd)
         logging.info('服务器[%s][%s][pid=%s]执行命令[%s]|结果[%s]', self._dirname, self.getCfg().name, self._pid, cmd, resp)
-        return True, None
+        return ret, resp
 
     def execute_w(self, cmd):
         '''
@@ -400,16 +554,19 @@ class ServerV3(IServer):
         （参考了后台跟游戏服通信方式）
         '''
         # assert (self.isRunning())
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.SOL_TCP)
-        s.connect(('localhost', self.getCfg().masterPort))
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.SOL_TCP)
+            s.connect(('localhost', self.getCfg().masterPort))
 
-        sign = cmd + self.getCfg().masterKey
-        sign = md5(sign.encode()).hexdigest()
-        msg = f'{sign}{cmd}\n'
-        s.send(msg.encode())
-        resp = s.recv(1024)
-        s.close()
-        return resp.decode().strip()
+            sign = cmd + self.getCfg().masterKey
+            sign = md5(sign.encode()).hexdigest()
+            msg = f'{sign}{cmd}\n'
+            s.send(msg.encode())
+            resp = s.recv(1024)
+            s.close()
+            return True, resp.decode().strip()
+        except Exception as e:
+            return False, str(e)
 
     def getInfo(self, debug=False):
         if self.isValid():
@@ -422,8 +579,7 @@ class ServerV3(IServer):
                 }
             else:
                 ver = self.getVersion()
-                return '[{}({}) V{}]:{}'.format(self.getCfg().name,
-                                                self.getCfg().title, ver if ver else '?', '运行中' if self.isRunning() else '已关闭')
+                return '[{} V{}]:{}'.format(self.getCfg().title, ver if ver else '?', '运行中' if self.isRunning() else '已关闭')
         else:
             return '服务器不可用'
 

@@ -14,34 +14,32 @@ from common import GUITool
 from common import Profiler
 from core import Action
 from core import STool
+from core import PlanManager
 from core import ServerManager
 from core import CFG
 import view
 import plugin
 import tkicon
 
-VERSION = '3.2'
+VERSION = '3.3a'
 
 
-class GUI:
+class GUI(tkinter.Tk):
     def __init__(self, title):
-        self._title = title
-        self._tk = tkinter.Tk()
-        tkicon.use(self._tk.iconbitmap)
-        self._tk.title('{} {}'.format(self._title, VERSION))
-        self._tk.resizable(False, False)
+        super().__init__()
+        self.title('{} v{}'.format(title, VERSION))
+        self.resizable(False, False)
+        tkicon.use(self.iconbitmap)
+
         logging.info('Server Tools Opend!')
         self.initMenu()
         self.initUI()
-        self._tk.protocol("WM_DELETE_WINDOW", self.onXClick)
+        self.protocol("WM_DELETE_WINDOW", self.onXClick)
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
-            self._tk.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
-        self._tk.mainloop()
+            self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
     def initUI(self):
-        gui = self._tk
-
-        tkinter.Label(gui, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
+        tkinter.Label(self, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
         self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
@@ -77,23 +75,25 @@ class GUI:
             plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
 
     def onUpdate(self):
+        PlanManager.getInstance().check()
         self.refreshServerList()
-        self._tk.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
+        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
     def onXClick(self):
-        self._tk.destroy()
+        self.destroy()
         logging.info('Server Tools Closed!')
 
     def initServerList(self):
         self._frameServers.init()
 
     def initMenu(self):
-        mebubar = tkinter.Menu(self._tk)
+        mebubar = tkinter.Menu(self)
         mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
         mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
         mebubar.add_command(label="刷新", command=self.reload)
         mebubar.add_command(label="重启", command=self.restart)
-        self._tk.config(menu=mebubar)
+        mebubar.add_command(label="计划", command=self.plan)
+        self.config(menu=mebubar)
 
     def refreshServerList(self, name=None):
         self._frameServers.refresh(name)
@@ -109,6 +109,11 @@ class GUI:
         except NameError as e:
             logging.info(repr(e))
             pass
+
+    def plan(self):
+        '''计划任务窗口'''
+        w = view.PlanWindow(self)
+        # w.grab_set()  # switch to modal window
 
     def onCreateServerClick(self):
         ret, err = ServerManager.createServer()
@@ -204,7 +209,7 @@ def main():
     try:
         assert os.path.exists(CFG.SERVER_ROOT), "服务器根目录不存在"
         assert os.path.exists(CFG.SERVER_TEMPLATE), "服务器模板路径不存在"
-        GUI("Server Tools")
+        GUI("传奇游戏服管理").mainloop()
     except:
         print(traceback.format_exc())
         logging.error(traceback.format_exc())
