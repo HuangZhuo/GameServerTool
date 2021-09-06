@@ -257,7 +257,7 @@ class PlanWindow(tkinter.Toplevel):
         try:
             time = datetime.strptime(self._time.get(), Plan.TIME_FMT)
             if time < datetime.now():
-                GUITool.MessageBox('白驹过隙，请重新设置时间')
+                GUITool.MessageBox('该时间已过，请重新设置')
                 return
         except ValueError:
             GUITool.MessageBox('时间格式错误')

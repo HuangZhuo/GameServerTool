@@ -21,7 +21,7 @@ import view
 import plugin
 import tkicon
 
-VERSION = '3.3a'
+VERSION = '3.3'
 
 
 class GUI(tkinter.Tk):
@@ -34,6 +34,7 @@ class GUI(tkinter.Tk):
         logging.info('Server Tools Opend!')
         self.initMenu()
         self.initUI()
+        self._planWindow = None
         self.protocol("WM_DELETE_WINDOW", self.onXClick)
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
             self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
@@ -112,7 +113,9 @@ class GUI(tkinter.Tk):
 
     def plan(self):
         '''计划任务窗口'''
-        w = view.PlanWindow(self)
+        if self._planWindow:
+            self._planWindow.destroy()
+        self._planWindow = view.PlanWindow(self)
         # w.grab_set()  # switch to modal window
 
     def onCreateServerClick(self):

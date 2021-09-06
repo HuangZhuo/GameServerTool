@@ -11,6 +11,7 @@ import re
 import socket
 import json
 from datetime import datetime
+from datetime import timedelta
 from enum import Enum
 from hashlib import md5
 from abc import ABCMeta, abstractmethod
@@ -230,11 +231,14 @@ class DB:
         return self._data.get(k)
 
     def set(self, k, v):
-        if v == None and k in self._data:
-            # rm storage
+        self._data[k] = v
+
+    def clear(self, k=None):
+        if None == k:
+            self._data.clear()
+            return
+        if k in self._data:
             self._data.pop(k)
-        else:
-            self._data[k] = v
 
     def save(self):
         with open(self._dbfile, 'w', encoding='utf-8') as f:
@@ -258,8 +262,11 @@ class Plan:
         self._plan = PlanType.NONE
         self._time = None
         if db:
-            # 检查数据有效性
-            self._plan = PlanType(db.get('plan'))
+            try:
+                self._plan = PlanType(db.get('plan'))
+            except ValueError as e:
+                logging.error('错误的任务类型：%s', db.get('plan'))
+                return
             time = datetime.strptime(db.get('time'), self.TIME_FMT)
             now = datetime.now()
             if now > time:
@@ -271,7 +278,8 @@ class Plan:
     def __str__(self) -> str:
         if self._plan == PlanType.NONE:
             return '无'
-        return '[{}]{}({})'.format(self._plan.value, self._time, self.getLeftSecs())
+        diff = timedelta(seconds=self.leftSecs)
+        return '[{}]{}({})'.format(self._plan.value, self._time, diff)
 
     @property
     def type(self):
@@ -285,7 +293,8 @@ class Plan:
     def empty(self):
         return self._plan == PlanType.NONE
 
-    def getLeftSecs(self):
+    @property
+    def leftSecs(self):
         now = datetime.now().replace(microsecond=0)
         secs = (self._time - now).total_seconds()
         return int(secs)
@@ -333,7 +342,7 @@ class PlanManager:
     def save(self):
         for s, plan in self._plans.items():
             if plan.empty:
-                self._db.set(s, None)
+                self._db.clear(s)
             else:
                 self._db.set(s, plan.get())
         self._db.save()
@@ -342,7 +351,7 @@ class PlanManager:
         for s, plan in self._plans.items():
             if plan.empty:
                 continue
-            if plan.getLeftSecs() <= 0:
+            if plan.leftSecs <= 0:
                 # print('执行任务')
                 server = ServerManager.getServer(s)
                 if plan.type == PlanType.START:
