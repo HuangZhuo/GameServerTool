@@ -100,7 +100,10 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
             server = ServerManager.getServer(servername)
             # 修改按钮文字，颜色
             w['text'] = server.getInfo(debug=CFG.DEBUG_MODE)
-            w['fg'] = 'green' if server.isRunning() else 'black'
+            if server.isRunning():
+                w['fg'] = 'red' if server.getExceptionDump() else 'green'
+            else:
+                w['fg'] = 'black'
 
     def onClick(self, name, func):
         ret, err = ServerManager.getServer(name).call(func)

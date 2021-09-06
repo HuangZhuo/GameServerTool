@@ -146,7 +146,9 @@ class STool:
         if STool.isServerDirExists(dirname):
             logging.error('创建服务器目录[%s]失败，目录已存在', dirname)
             return False, dirname
-        shutil.copytree(CFG.SERVER_TEMPLATE, os.path.join(CFG.SERVER_ROOT, dirname), ignore=shutil.ignore_patterns('*.log'))
+        shutil.copytree(CFG.SERVER_TEMPLATE,
+                        os.path.join(CFG.SERVER_ROOT, dirname),
+                        ignore=shutil.ignore_patterns('*.log', '*.dmp'))
         logging.info('创建服务器目录[%s]成功', dirname)
         return True, dirname
 
@@ -354,15 +356,22 @@ class PlanManager:
             if plan.leftSecs <= 0:
                 # print('执行任务')
                 server = ServerManager.getServer(s)
+                cmd = None
                 if plan.type == PlanType.START:
-                    server.start()
+                    cmd = 'start'
                 elif plan.type == PlanType.EXIT:
-                    server.exit()
+                    cmd = 'exit'
                 elif plan.type == PlanType.RESTART:
-                    server.restart()
+                    cmd = 'restart'
+
+                if not cmd:
+                    logging.error('不支持的计划任务类型[%s]', plan.name)
                 else:
-                    logging.error('无效的计划任务类型[%s]', plan.name)
-                logging.info('服务器[%s]执行计划任务[%s]', s, plan.name)
+                    ret, err = server.call(cmd)
+                    if ret:
+                        logging.info('服务器[%s]执行计划任务[%s]成功', s, plan.name)
+                    else:
+                        logging.info('服务器[%s]执行计划任务[%s]失败：%s', s, plan.name, err)
                 plan.clear()
                 self.save()
                 # break为了一次tick只执行一个计划任务
@@ -626,8 +635,19 @@ class ServerV3(IServer):
         return False
 
     def getLastError(self):
-        # 获取服务器运行错误日志
+        '''获取服务器运行错误日志'''
         raise NotImplementedError('功能暂未实现')
+
+    def getExceptionDump(self):
+        '''获取异常dmp文件'''
+        for f in os.listdir(self._serverPath):
+            f = os.path.join(self._serverPath, f)
+            if not os.path.isfile(f):
+                continue
+            __, ext = os.path.splitext(f)
+            if ext == '.dmp':
+                return True
+        return False
 
     def getCfg(self):
         return self._servercfg
