@@ -9,7 +9,7 @@ import os
 import time
 import logging, traceback
 
-from common import counter
+from common import counter, get_free_space_gb
 from common import GUITool
 from common import Profiler
 from core import Action
@@ -27,7 +27,7 @@ VERSION = '3.3'
 class GUI(tkinter.Tk):
     def __init__(self, title):
         super().__init__()
-        self.title('{} v{}'.format(title, VERSION))
+        self.title('{} v{} [{}]'.format(title, VERSION, CFG.SERVER_ROOT))
         self.resizable(False, False)
         tkicon.use(self.iconbitmap)
 
@@ -36,11 +36,13 @@ class GUI(tkinter.Tk):
         self.initUI()
         self._planWindow = None
         self.protocol("WM_DELETE_WINDOW", self.onXClick)
+
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
-            self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
+            self.after(0, self.onUpdate)
 
     def initUI(self):
-        tkinter.Label(self, text='服务器列表 [%s]' % (CFG.SERVER_ROOT)).pack(fill=tkinter.X)
+        self._lblState = tkinter.Label(self)
+        self._lblState.pack(fill=tkinter.X)
         self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
@@ -53,6 +55,7 @@ class GUI(tkinter.Tk):
         nextcol = counter()
         GUITool.createBtn('模板目录', STool.showServerTemplateInExplorer, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('创建', self.onCreateServerClick, parent=frame3, grid=(0, nextcol()))
+        GUITool.createBtn('删除', self.onDeleteServerClick, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('整包更新', self.onUpdateServerClick, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('数据更新', self.onUpdateServerDataClick, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('开启', self.onStartServerClick, parent=frame3, grid=(0, nextcol()))
@@ -77,6 +80,9 @@ class GUI(tkinter.Tk):
 
     def onUpdate(self):
         PlanManager.getInstance().check()
+        gb = get_free_space_gb(CFG.SERVER_ROOT)
+        self._lblState['text'] = '磁盘剩余空间 [{} GB]'.format(gb)
+        self._lblState['fg'] = 'black' if gb > CFG.DISK_LEFT_SPACE_WARING_NUM_GB else 'red'
         self.refreshServerList()
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
@@ -124,6 +130,20 @@ class GUI(tkinter.Tk):
             self.initServerList()
         else:
             GUITool.MessageBox(err)
+
+    def onDeleteServerClick(self):
+        servers = self.getSelectedServers()
+        if not GUITool.MessageBox('是否删除以下服务器目录：\n{}'.format(servers), ask=True):
+            return
+        for v in servers:
+            if ServerManager.getServer(v).isRunning():
+                GUITool.MessageBox('请先关闭服务器:{}'.format(v))
+                break
+            try:
+                STool.rmServerDir(v)
+            except Exception as e:
+                GUITool.MessageBox('删除失败:{}'.format(e))
+                break
 
     def onUpdateServerClick(self):
         Profiler.START()

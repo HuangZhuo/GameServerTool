@@ -8,11 +8,9 @@ import logging
 import time
 
 
+# https://blog.csdn.net/qq_40134903/article/details/88297476
 def get_hwnds_for_pid(pid):
-    '''
-    通过PID查询句柄ID
-    ref: https://blog.csdn.net/qq_40134903/article/details/88297476
-    '''
+    '''通过PID查询句柄ID'''
     import win32gui
     import win32process
 
@@ -25,6 +23,16 @@ def get_hwnds_for_pid(pid):
     hwnds = []
     win32gui.EnumWindows(callback, hwnds)
     return hwnds[0] if len(hwnds) > 0 else 0
+
+
+# https://github.com/rpowel/hass_restAPI/blob/main/src/disk.py
+def get_free_space_gb(dirname):
+    """Return folder/drive free space (in gigabytes)."""
+    import psutil
+
+    free_bytes = psutil.disk_usage(dirname).free  # bytes
+    free_bytes = free_bytes / 1024 / 1024 / 1024  # Gigabytes
+    return int(free_bytes)
 
 
 def counter(start=0):

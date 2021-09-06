@@ -86,6 +86,11 @@ class CMD_INI(INI):
         # 是否在任务栏合并服务器窗口（只支持兼容模式查找）
         return self.GetBool('CMD', 'COMBINE_SERVER_WINDOWS_IN_TASKBAR', True)
 
+    @property
+    def DISK_LEFT_SPACE_WARING_NUM_GB(self):
+        # 磁盘剩余空间警告
+        return self.GetInt('CMD', 'DISK_SPACE_WARING_NUM_GB', 10)
+
     def GetAction(self, key):
         return self.Get('Actions', key, None)
 
@@ -116,6 +121,11 @@ class STool:
         dirname = os.path.join(CFG.SERVER_ROOT, dirname)
         # print(dirname, os.path.isdir(dirname), os.path.isfile(dirname))
         return os.path.isdir(dirname) and STool.getServerDirID(dirname) >= 0
+
+    @staticmethod
+    def rmServerDir(dirname):
+        dirname = os.path.join(CFG.SERVER_ROOT, dirname)
+        shutil.rmtree(dirname)
 
     @staticmethod
     def isServerDirExists(dirname):
