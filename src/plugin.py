@@ -268,10 +268,4 @@ class PluginWebService(tkinter.Frame, IPlugin):
             return
         else:
             self._lbl['text'] = 'WebService运行中'
-            cmd = self._service.next_cmd
-            if cmd:
-                cmd, id = cmd
-                server = STool.getServerDirName(id)
-                server = ServerManager.getServer(server)
-                server.call(cmd)
             self.after(1000, self.checkWebServer)

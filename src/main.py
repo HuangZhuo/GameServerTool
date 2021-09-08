@@ -8,7 +8,6 @@ import tkinter
 import os
 import time
 import logging, traceback
-from multiprocessing import freeze_support
 
 from common import counter, get_free_space_gb
 from common import GUITool
@@ -231,8 +230,6 @@ class GUI(tkinter.Tk):
 
 
 def main():
-    # https://blog.csdn.net/Owen_goodman/article/details/115521388
-    freeze_support()
     logging.basicConfig(filename='cmd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:

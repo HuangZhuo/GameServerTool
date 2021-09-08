@@ -1,4 +1,5 @@
-from multiprocessing import Process, Queue
+from threading import Thread
+from queue import Queue
 from flask import Flask, request
 import json
 import pythoncom
@@ -8,14 +9,13 @@ from core import STool
 from core import ServerManager
 
 
-class WebServerProcess(Process):
-    def __init__(self, host, port, errs: Queue, cmds: Queue):
+class WebServerThread(Thread):
+    def __init__(self, host, port, errs: Queue):
         super().__init__()
-        self.name = 'WebServerProcess'
+        self.name = 'WebServerThread'
         self._host = host
         self._port = port
         self._errs = errs
-        self._cmds = cmds
 
     def run(self):
         app = Flask(__name__)
@@ -48,15 +48,11 @@ class WebServerProcess(Process):
         elif cmd == 'delete':
             ret, err = ServerManager.deleteServer(id=id)
             return self.resp(0) if ret else self.resp(-1, err)
-        elif cmd in ('start', 'hotUpdate'):
+        elif cmd in ('start', 'hotUpdate', 'exit'):
             dirname = STool.getServerDirName(id)
             s = ServerManager.getServer(dirname)
             ret, err = s.call(cmd)
             return self.resp(0) if ret else self.resp(-1, err)
-        elif cmd == 'exit':
-            # 在主进程中异步处理命令
-            self._cmds.put((cmd, id))
-            return self.resp(0, '关闭服务器暂时异步执行')
         else:
             return self.resp(-1, '参数错误')
 
@@ -71,18 +67,16 @@ class WebServer():
     def __init__(self) -> None:
         host = CFG.Get('WebServer', 'host', 'localhost')
         port = CFG.Get('WebServer', 'port', '5000')
-        # 使用queue获取子进程数据
         self._errs = Queue()
-        self._cmds = Queue()
-        self._service = WebServerProcess(host, port, self._errs, self._cmds)
+        self._service = WebServerThread(host, port, self._errs)
 
     def start(self):
-        self._service.daemon = True
+        self._service.setDaemon(True)
         self._service.start()
         return self
 
     def stop(self):
-        # 因为设置了守护，可以随着父进程一起关闭
+        # 因为设置了守护，可以随着进程一起关闭
         pass
 
     @property
@@ -93,12 +87,6 @@ class WebServer():
     def next_error(self):
         if not self._errs.empty():
             return self._errs.get()
-        return None
-
-    @property
-    def next_cmd(self):
-        if not self._cmds.empty():
-            return self._cmds.get()
         return None
 
 
