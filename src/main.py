@@ -141,13 +141,9 @@ class GUI(tkinter.Tk):
         if not GUITool.MessageBox('是否删除以下服务器目录：\n{}'.format(servers), ask=True):
             return
         for v in servers:
-            if ServerManager.getServer(v).isRunning():
-                GUITool.MessageBox('请先关闭服务器:{}'.format(v))
-                break
-            try:
-                STool.rmServerDir(v)
-            except Exception as e:
-                GUITool.MessageBox('删除失败:{}'.format(e))
+            ret, err = ServerManager.deleteServer(name=v)
+            if not ret and err:
+                GUITool.MessageBox(err)
                 break
 
     def onUpdateServerClick(self):

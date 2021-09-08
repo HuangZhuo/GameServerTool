@@ -40,14 +40,18 @@ class WebServerProcess(Process):
     def proc(self, cmd, id):
         # todo 检查参数有效性
         if cmd == 'create':
-            s, err = ServerManager.createServer(id)
-            return self.resp(0) if s else self.resp(-1, err)
+            ret, err = ServerManager.createServer(id)
+            return self.resp(0) if ret else self.resp(-1, err)
+        elif cmd == 'delete':
+            ret, err = ServerManager.deleteServer(id=id)
+            return self.resp(0) if ret else self.resp(-1, err)
         elif cmd in ('start', 'hotUpdate'):
             dirname = STool.getServerDirName(id)
             s = ServerManager.getServer(dirname)
             ret, err = s.call(cmd)
             return self.resp(0) if ret else self.resp(-1, err)
         elif cmd == 'exit':
+            # 在主进程中异步处理命令
             self._cmds.put((cmd, id))
             return self.resp(0, '关闭服务器暂时异步执行')
         else:

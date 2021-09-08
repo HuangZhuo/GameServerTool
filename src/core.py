@@ -755,6 +755,20 @@ class ServerManager:
         return server, None
 
     @staticmethod
+    def deleteServer(name=None, id=None):
+        if id:
+            name = STool.getServerDirName(id)
+        if not name:
+            return False, '参数错误'
+        if ServerManager.getServer(name).isRunning():
+            return False, '请先关闭服务器:{}'.format(name)
+        try:
+            STool.rmServerDir(name)
+            return True, None
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
     def getServer(name) -> ServerV3:
         if not ServerManager.__servers.get(name):
             ServerManager.__servers[name] = ServerV3(name)
