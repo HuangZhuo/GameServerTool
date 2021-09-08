@@ -138,6 +138,9 @@ class GUI(tkinter.Tk):
 
     def onDeleteServerClick(self):
         servers = self.getSelectedServers()
+        if len(servers) == 0:
+            GUITool.MessageBox('请选择需要删除的服务器')
+            return
         if not GUITool.MessageBox('是否删除以下服务器目录：\n{}'.format(servers), ask=True):
             return
         for v in servers:

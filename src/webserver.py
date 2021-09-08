@@ -3,14 +3,17 @@ from flask import Flask, request
 import json
 import pythoncom
 
+from core import CFG
 from core import STool
 from core import ServerManager
 
 
 class WebServerProcess(Process):
-    def __init__(self, errs: Queue, cmds: Queue):
+    def __init__(self, host, port, errs: Queue, cmds: Queue):
         super().__init__()
         self.name = 'WebServerProcess'
+        self._host = host
+        self._port = port
         self._errs = errs
         self._cmds = cmds
 
@@ -18,7 +21,7 @@ class WebServerProcess(Process):
         app = Flask(__name__)
 
         @app.route('/gs')
-        def home():
+        def gs():
             # https://blog.csdn.net/zhouf00/article/details/93630823
             pythoncom.CoInitialize()
             id, cmd = None, None
@@ -33,7 +36,7 @@ class WebServerProcess(Process):
             return self.proc(cmd, id)
 
         try:
-            app.run(host='0.0.0.0', port=5000)
+            app.run(host=self._host, port=self._port)
         except Exception as e:
             self._errs.put(str(e))
 
@@ -66,10 +69,12 @@ class WebServerProcess(Process):
 
 class WebServer():
     def __init__(self) -> None:
+        host = CFG.Get('WebServer', 'host', 'localhost')
+        port = CFG.Get('WebServer', 'port', '5000')
         # 使用queue获取子进程数据
         self._errs = Queue()
         self._cmds = Queue()
-        self._service = WebServerProcess(self._errs, self._cmds)
+        self._service = WebServerProcess(host, port, self._errs, self._cmds)
 
     def start(self):
         self._service.daemon = True
