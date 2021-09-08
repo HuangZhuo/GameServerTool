@@ -8,6 +8,7 @@ import tkinter
 import os
 import time
 import logging, traceback
+from multiprocessing import freeze_support
 
 from common import counter, get_free_space_gb
 from common import GUITool
@@ -34,6 +35,7 @@ class GUI(tkinter.Tk):
         logging.info('Server Tools Opend!')
         self.initMenu()
         self.initUI()
+        self.initPlugins()
         self._planWindow = None
         self.protocol("WM_DELETE_WINDOW", self.onXClick)
 
@@ -68,6 +70,7 @@ class GUI(tkinter.Tk):
             GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
         GUITool.GridConfig(frame3, padx=5)
 
+    def initPlugins(self):
         # 显示扩展功能
         if CFG.GetBool('Plugin', 'EnableExtendOperations', True):
             plugin.PluginExtendOperations(self).pack(padx=5, pady=5)
@@ -77,6 +80,8 @@ class GUI(tkinter.Tk):
         # 执行命令插件
         if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
             plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
+
+        plugin.PluginWebService(self).pack()
 
     def onUpdate(self):
         PlanManager.getInstance().check()
@@ -227,6 +232,8 @@ class GUI(tkinter.Tk):
 
 
 def main():
+    # https://blog.csdn.net/Owen_goodman/article/details/115521388
+    freeze_support()
     logging.basicConfig(filename='cmd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:

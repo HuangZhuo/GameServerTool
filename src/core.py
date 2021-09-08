@@ -141,6 +141,10 @@ class STool:
         return int(m.group(1)) if m else -1
 
     @staticmethod
+    def getServerDirName(id):
+        return 'gameserver{}'.format(id)
+
+    @staticmethod
     def getNextServerDirID():
         # 返回下一个可用服务器目录id索引，规则：自增1
         tmp = STool.getServerDirs()
@@ -152,7 +156,7 @@ class STool:
     @staticmethod
     def createServerDir(id):
         # 根据服务器模板创建一个新服（目录拷贝）
-        dirname = 'gameserver{}'.format(id)
+        dirname = STool.getServerDirName(id)
         if STool.isServerDirExists(dirname):
             logging.error('创建服务器目录[%s]失败，目录已存在', dirname)
             return False, dirname

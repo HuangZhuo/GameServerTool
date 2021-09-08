@@ -4,6 +4,7 @@
 import tkinter
 import re
 import logging
+from webserver import WebServer
 
 from core import STool
 from core import ServerManager
@@ -245,3 +246,32 @@ class PluginExtendOperations(tkinter.Frame, IPlugin):
             STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
             if server.isRunning():
                 server.hotUpdate()
+
+
+class PluginWebService(tkinter.Frame, IPlugin):
+    def __init__(self, gui):
+        tkinter.Frame.__init__(self)
+        self._gui = gui
+        self._lbl = tkinter.Label(self, text='WebService准备启动')
+        self._lbl.grid(row=0, column=0)
+        self._service = None
+        self.after(2000, self.initWebServer)
+
+    def initWebServer(self):
+        self._service = WebServer().start()
+        self.after(2000, self.checkWebServer)
+
+    def checkWebServer(self):
+        if not self._service.running:
+            self._lbl['text'] = 'WebService停止运行:{}'.format(self._service.next_error)
+            self._lbl['fg'] = 'red'
+            return
+        else:
+            self._lbl['text'] = 'WebService运行中'
+            cmd = self._service.next_cmd
+            if cmd:
+                cmd, id = cmd
+                server = STool.getServerDirName(id)
+                server = ServerManager.getServer(server)
+                server.call(cmd)
+            self.after(1000, self.checkWebServer)
