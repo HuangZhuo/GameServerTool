@@ -268,4 +268,5 @@ class PluginWebService(tkinter.Frame, IPlugin):
             return
         else:
             self._lbl['text'] = 'WebService运行中'
+            self._lbl['fg'] = 'gray'
             self.after(1000, self.checkWebServer)

@@ -77,7 +77,7 @@ class WebServer():
 
     def stop(self):
         # 因为设置了守护，可以随着进程一起关闭
-        pass
+        raise NotImplementedError
 
     @property
     def running(self) -> bool:
