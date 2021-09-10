@@ -44,7 +44,20 @@ class WebServerThread(Thread):
         # todo 检查参数有效性
         if cmd == 'create':
             ret, err = ServerManager.createServer(id)
-            return self.resp(0) if ret else self.resp(-1, err)
+            data = None if not ret else {
+                # 这里的key是参照[cc-game-mili.servers]数据库命名
+                'serverId': ret.getCfg().serverID,
+                'name': ret.getCfg().title,
+                'masterport': ret.getCfg().masterPort,
+                'octgameName': ret.getCfg().Get('db', 'db'),
+                'octlogName': ret.getCfg().Get('octlog', 'db'),
+                # 'socket': '{}:{}'.format(
+                #     ret.getCfg().Get('net', 'public_ip'),
+                #     ret.getCfg().Get('net', 'port'),
+                # ),
+                'port': ret.getCfg().Get('net', 'port'),
+            }
+            return self.resp(0, '', data) if ret else self.resp(-1, err)
         elif cmd == 'delete':
             ret, err = ServerManager.deleteServer(id=id)
             return self.resp(0) if ret else self.resp(-1, err)
@@ -56,10 +69,11 @@ class WebServerThread(Thread):
         else:
             return self.resp(-1, '参数错误')
 
-    def resp(self, code, msg=''):
+    def resp(self, code, msg='', data=None):
         return json.dumps({
             'code': code,
             'msg': msg,
+            'data': data,
         })
 
 
