@@ -20,17 +20,13 @@ class WebServerThread(Thread):
     def run(self):
         app = Flask(__name__)
 
-        @app.route('/gs')
+        @app.route('/gs', methods=['GET', 'POST'])
         def gs():
-            # https://blog.csdn.net/zhouf00/article/details/93630823
-            pythoncom.CoInitialize()
             id, cmd = None, None
             if request.method == 'POST':
-                obj = request.get_json()
-                cmd = obj['cmd']
-                id = obj['id']
+                cmd = request.form.get('cmd')
+                id = request.form.get('id')
             else:
-                # return 'hello world'
                 cmd = request.args.get('cmd')
                 id = request.args.get('id')
             return self.proc(cmd, id)
