@@ -41,6 +41,15 @@ class GUI(tkinter.Tk):
         if CFG.SERVER_STATE_UPDATE_INTERVAL > 0:
             self.after(0, self.onUpdate)
 
+    def initMenu(self):
+        mebubar = tkinter.Menu(self)
+        mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
+        mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
+        mebubar.add_command(label="刷新", command=self.reload)
+        mebubar.add_command(label="重启", command=self.restart)
+        mebubar.add_command(label="计划", command=self.plan)
+        self.config(menu=mebubar)
+
     def initUI(self):
         self._lblState = tkinter.Label(self)
         self._lblState.pack(fill=tkinter.X)
@@ -97,15 +106,6 @@ class GUI(tkinter.Tk):
     def initServerList(self):
         self._frameServers.init()
 
-    def initMenu(self):
-        mebubar = tkinter.Menu(self)
-        mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
-        mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
-        mebubar.add_command(label="刷新", command=self.reload)
-        mebubar.add_command(label="重启", command=self.restart)
-        mebubar.add_command(label="计划", command=self.plan)
-        self.config(menu=mebubar)
-
     def refreshServerList(self, name=None):
         self._frameServers.refresh(name)
 
@@ -147,6 +147,7 @@ class GUI(tkinter.Tk):
             if not ret and err:
                 GUITool.MessageBox(err)
                 break
+        self.initServerList()
 
     def onUpdateServerClick(self):
         Profiler.START()

@@ -780,6 +780,15 @@ class ServerManager:
         raise NotImplementedError('功能暂未实现')
 
     @staticmethod
-    def clear():
-        logging.info('强制刷新：删除所有服务器对象')
-        ServerManager.__servers.clear()
+    def clear(name=None):
+        if name == None:
+            logging.info('强制刷新：删除所有服务器对象')
+            ServerManager.__servers.clear()
+        else:
+            if name in ServerManager.__servers:
+                ServerManager.__servers.pop(name)
+
+    @staticmethod
+    def getCount():
+        '''获取总服务器（目录）数'''
+        return len(ServerManager.__servers)

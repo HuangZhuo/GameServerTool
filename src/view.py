@@ -3,7 +3,6 @@
 
 import tkinter
 from tkinter import ttk
-import math
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
 
@@ -52,6 +51,71 @@ class IServerListView:
         raise NotImplementedError
 
 
+class ServerItem(tkinter.Frame):
+    def __init__(self, master, name) -> None:
+        super().__init__(master=master, name=name)
+        self._name = name
+        var = tkinter.BooleanVar(value=True)
+        btn = tkinter.Checkbutton(self, text=name, variable=var, onvalue=True, offvalue=False)
+        btn.var = var
+        btn.grid(row=0, column=0, sticky='W')
+        self._btn = btn
+
+    def getName(self):
+        return self._name
+
+    def setSelected(self, st):
+        self._btn.select() if st else self._btn.deselect()
+
+    def isSelected(self):
+        return self._btn.var.get()
+
+    def refresh(self):
+        pass
+
+    def setText(self, text, color=None):
+        self._btn['text'] = text
+        if color:
+            self._btn['fg'] = color
+
+
+class ServerItemBasic(ServerItem):
+    LESS_OPTIONS = CFG.GetBool('View', 'FixedMultiCol.LESS_OPTIONS', False)
+
+    def __init__(self, master, name) -> None:
+        super().__init__(master, name)
+        self.setSelected(ServerManager.getServer(name).isRunning())
+        nextcol = counter(1)
+        GUITool.createBtn('目录', lambda: self.onClick('showInExplorer'), parent=self, grid=(0, nextcol(), 2))
+        GUITool.createBtn('配置', lambda: self.onClick('showConfigInEditor'), parent=self, grid=(0, nextcol(), 2))
+        if not self.LESS_OPTIONS:
+            GUITool.createBtn('开启', lambda: self.onClick('start'), parent=self, grid=(0, nextcol(), 2))
+            GUITool.createBtn('热更', lambda: self.onClick('hotUpdate'), parent=self, grid=(0, nextcol(), 2))
+            GUITool.createBtn('重启', lambda: self.onClick('restart'), parent=self, grid=(0, nextcol(), 2))
+            GUITool.createBtn('关闭', lambda: self.onClick('exit'), parent=self, grid=(0, nextcol(), 2))
+        GUITool.createBtn('控制台', lambda: self.onClick('showConsoleWindow'), parent=self, grid=(0, nextcol(), 2))
+
+    def refresh(self):
+        name = self.getName()
+        if not STool.isServerDirExists(name):
+            ServerManager.clear(name)
+            self.destroy()
+            return
+        server = ServerManager.getServer(name)
+        text = server.getInfo(debug=CFG.DEBUG_MODE)
+        fg = None
+        if server.isRunning():
+            fg = 'red' if server.getExceptionDump() else 'green'
+        else:
+            fg = 'black'
+        self.setText(text, fg)
+
+    def onClick(self, func):
+        ret, err = ServerManager.getServer(self.getName()).call(func)
+        if not ret:
+            GUITool.MessageBox(err)
+
+
 # 单列高度无限扩展视图（原始版本）
 class ServerListViewFixed(tkinter.Frame, IServerListView):
     def __init__(self, gui):
@@ -69,98 +133,81 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
         self.refresh()
 
     def createServerItem(self, idx, name):
-        frame = self
-        var = tkinter.BooleanVar(value=True)
-        btn = tkinter.Checkbutton(frame, text=name, variable=var, onvalue=True, offvalue=False)
-        btn.var = var
-        btn.widgetName = name
-        btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
-        btn.grid(row=idx, column=0, sticky='W')
-        nextcol = counter(1)
-        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(idx, nextcol()))
-        GUITool.createBtn('控制台', lambda: self.onClick(name, 'showConsoleWindow'), parent=frame, grid=(idx, nextcol()))
+        ServerItemBasic(self, name).grid(row=idx, column=0, sticky='W')
 
     def refresh(self, name=None):
-        items = None
         if name:
-            items = [GUITool.getChildByWidgetName(self, name)]
-        else:
-            items = GUITool.getChildsByType(self, tkinter.Checkbutton)
+            # 刷新单个
+            item = GUITool.getChildByWidgetName(self, name)
+            if item:
+                item.refresh()
+            return
+
+        items = GUITool.getChildsByType(self, ServerItem)
+        if len(items) < ServerManager.getCount():
+            # 处理新增
+            self.init()
+            return
 
         for w in items:
-            servername = w.widgetName
-            if not STool.isServerDirExists(servername):
-                # todo:delete the serveritem
-                pass
-            server = ServerManager.getServer(servername)
-            # 修改按钮文字，颜色
-            w['text'] = server.getInfo(debug=CFG.DEBUG_MODE)
-            if server.isRunning():
-                w['fg'] = 'red' if server.getExceptionDump() else 'green'
-            else:
-                w['fg'] = 'black'
-
-    def onClick(self, name, func):
-        ret, err = ServerManager.getServer(name).call(func)
-        if not ret:
-            GUITool.MessageBox(err)
+            w.refresh()
 
     def getAll(self):
-        ret = GUITool.getChildsByType(self, tkinter.Checkbutton)
-        ret = list(map(lambda w: w.widgetName, ret))
+        ret = GUITool.getChildsByType(self, ServerItem)
+        ret = list(map(lambda w: w.getName(), ret))
         return ret
 
     def selectAll(self):
-        for w in GUITool.getChildsByType(self, tkinter.Checkbutton):
-            w.select()
+        for w in GUITool.getChildsByType(self, ServerItem):
+            w.setSelected(True)
 
     def deselectAll(self):
-        for w in GUITool.getChildsByType(self, tkinter.Checkbutton):
-            w.deselect()
+        for w in GUITool.getChildsByType(self, ServerItem):
+            w.setSelected(False)
 
     def getSelected(self):
-        ft = lambda w: isinstance(w, tkinter.Checkbutton) and w.var.get()
+        ft = lambda w: isinstance(w, ServerItem) and w.isSelected()
         ret = GUITool.getChildsByFilter(self, ft)
-        ret = list(map(lambda w: w.widgetName, ret))
+        ret = list(map(lambda w: w.getName(), ret))
         return ret
 
     def setSelected(self, slt=[]):
-        for w in GUITool.getChildsByType(self, tkinter.Checkbutton):
-            servername = w.widgetName
-            w.select() if servername in slt else w.deselect()
+        for w in GUITool.getChildsByType(self, ServerItem):
+            w.setSelected(w.getName() in slt)
 
 
 # 多列扩展视图（兼容单列）
 class ServerListViewFixedMultiCol(ServerListViewFixed):
     # 默认使用单列
     COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
-    LESS_OPTIONS = CFG.GetBool('View', 'FixedMultiCol.LESS_OPTIONS', False)
-    GRID_COUNT_PER_ITEM = 4 if LESS_OPTIONS else 8
 
     def createServerItem(self, idx, name):
-        frame = self
-        row = math.floor(idx / self.COL_NUM)
-        nextcol = counter((idx % self.COL_NUM) * self.GRID_COUNT_PER_ITEM)
+        ServerItemBasic(self, name).grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
 
-        var = tkinter.BooleanVar(value=True)
-        btn = tkinter.Checkbutton(frame, text=name, variable=var, onvalue=True, offvalue=False)
-        btn.var = var
-        btn.widgetName = name
-        btn.select() if ServerManager.getServer(name).isRunning() else btn.deselect()
-        btn.grid(row=row, column=nextcol(), sticky='W')
-        GUITool.createBtn('目录', lambda: self.onClick(name, 'showInExplorer'), parent=frame, grid=(row, nextcol()))
-        GUITool.createBtn('配置', lambda: self.onClick(name, 'showConfigInEditor'), parent=frame, grid=(row, nextcol()))
-        if not self.LESS_OPTIONS:
-            GUITool.createBtn('开启', lambda: self.onClick(name, 'start'), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('热更', lambda: self.onClick(name, 'hotUpdate'), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('重启', lambda: self.onClick(name, 'restart'), parent=frame, grid=(row, nextcol()))
-            GUITool.createBtn('关闭', lambda: self.onClick(name, 'exit'), parent=frame, grid=(row, nextcol()))
-        GUITool.createBtn('控制台', lambda: self.onClick(name, 'showConsoleWindow'), parent=frame, grid=(row, nextcol()))
+
+class ServerItemPlan(ServerItem):
+    def __init__(self, master, name) -> None:
+        super().__init__(master, name)
+        self.setSelected(False)
+        GUITool.createBtn('清 除', lambda: self.clearPlan(), parent=self, grid=(0, 1))
+
+    def refresh(self):
+        name = self.getName()
+        if not STool.isServerDirExists(name):
+            PlanManager.getInstance().getPlan(name).clear()
+            self.destroy()
+            return
+        server = ServerManager.getServer(self._name)
+        plan = PlanManager.getInstance().getPlan(self._name)
+        # 修改按钮文字，颜色
+        text = '{}:{}'.format(server.getCfg().title, plan)
+        fg = 'black' if plan.empty else 'blue'
+        self.setText(text, fg)
+
+    def clearPlan(self):
+        PlanManager.getInstance().getPlan(self.getName()).clear()
+        PlanManager.getInstance().save()
+        self.refresh()
 
 
 # 多列扩展视图【计划任务】（兼容单列）
@@ -169,40 +216,7 @@ class ServerListPlanViewFixedMultiCol(ServerListViewFixed):
     COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
 
     def createServerItem(self, idx, name):
-        frame = self
-        row = math.floor(idx / self.COL_NUM)
-        nextcol = counter((idx % self.COL_NUM) * 3)
-
-        var = tkinter.BooleanVar(value=True)
-        btn = tkinter.Checkbutton(frame, text=name, variable=var, onvalue=True, offvalue=False)
-        btn.var = var
-        btn.widgetName = name
-        btn.deselect()
-        btn.grid(row=row, column=nextcol(), sticky='W')
-        GUITool.createBtn('清 除', lambda: self.clearPlan(name), parent=frame, grid=(row, nextcol()))
-
-    def clearPlan(self, servername):
-        PlanManager.getInstance().getPlan(servername).clear()
-        PlanManager.getInstance().save()
-        self.refresh(servername)
-
-    def refresh(self, name=None):
-        '''刷新计划任务'''
-        items = None
-        if name:
-            items = [GUITool.getChildByWidgetName(self, name)]
-        else:
-            items = GUITool.getChildsByType(self, tkinter.Checkbutton)
-        for w in items:
-            servername = w.widgetName
-            if not STool.isServerDirExists(servername):
-                # todo:delete the serveritem
-                pass
-            server = ServerManager.getServer(servername)
-            plan = PlanManager.getInstance().getPlan(servername)
-            # 修改按钮文字，颜色
-            w['text'] = '{}:{}'.format(server.getCfg().title, plan)
-            w['fg'] = 'black' if plan.empty else 'blue'
+        ServerItemPlan(self, name).grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
 
 
 class PlanWindow(tkinter.Toplevel):
@@ -237,7 +251,7 @@ class PlanWindow(tkinter.Toplevel):
         self._time = tkinter.Entry(frameOption, width=20)
         self._time.grid(row=0, column=nextcol())
         self._time.insert(0, datetime.now().replace(microsecond=0))
-        # self._edit.bind("<Return>", lambda _: self.onExecuteClick())
+        self._time.bind("<Return>", lambda _: self.onSetClick())
 
         GUITool.createBtn('设 置', lambda: self.onSetClick(), parent=frameOption, grid=(0, nextcol()))
 

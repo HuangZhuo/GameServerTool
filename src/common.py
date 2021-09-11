@@ -87,7 +87,8 @@ class GUITool:
         if pack:
             btn.pack()
         elif grid:
-            btn.grid(row=grid[0], column=grid[1])
+            padx = grid[2] if len(grid) > 2 else 0
+            btn.grid(row=grid[0], column=grid[1], padx=padx)
         return btn
 
 
