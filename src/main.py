@@ -21,7 +21,7 @@ import view
 import plugin
 import tkicon
 
-VERSION = '3.4a'
+VERSION = '3.4'
 
 
 class GUI(tkinter.Tk):

@@ -2,7 +2,6 @@ from threading import Thread
 from queue import Queue
 from flask import Flask, request
 import json
-import pythoncom
 
 from core import CFG
 from core import STool

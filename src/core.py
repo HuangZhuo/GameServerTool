@@ -233,15 +233,12 @@ class DB:
     def __init__(self, dbfile) -> None:
         self._dbfile = dbfile
         self._data = dict()
-        # 不存在则创建DB文件
-        if not os.path.exists(dbfile):
-            with open(dbfile, 'w') as f:
-                f.write('{}')
-        with open(dbfile, 'r', encoding='utf-8') as f:
-            # todo: wrong json format
-            content = f.read()
-            if len(content) > 0:
-                self._data = json.loads(content)
+        if os.path.exists(dbfile):
+            with open(dbfile, 'r', encoding='utf-8') as f:
+                # todo: wrong json format
+                content = f.read()
+                if len(content) > 0:
+                    self._data = json.loads(content)
 
     def get(self, k):
         return self._data.get(k)
@@ -257,8 +254,12 @@ class DB:
             self._data.pop(k)
 
     def save(self):
-        with open(self._dbfile, 'w', encoding='utf-8') as f:
-            json.dump(self._data, f, ensure_ascii=False, indent=4)
+        if len(self._data) == 0:
+            # 没有数据直接删除文件
+            os.remove(self._dbfile)
+        else:
+            with open(self._dbfile, 'w', encoding='utf-8') as f:
+                json.dump(self._data, f, ensure_ascii=False, indent=4)
 
 
 class PlanType(str, Enum):

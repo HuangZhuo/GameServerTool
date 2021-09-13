@@ -84,7 +84,7 @@ class ServerItemBasic(ServerItem):
 
     def __init__(self, master, name) -> None:
         super().__init__(master, name)
-        self.setSelected(ServerManager.getServer(name).isRunning())
+        self.setSelected(False)
         nextcol = counter(1)
         GUITool.createBtn('目录', lambda: self.onClick('showInExplorer'), parent=self, grid=(0, nextcol(), 2))
         GUITool.createBtn('配置', lambda: self.onClick('showConfigInEditor'), parent=self, grid=(0, nextcol(), 2))
