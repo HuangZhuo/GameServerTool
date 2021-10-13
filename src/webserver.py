@@ -23,12 +23,23 @@ class WebServerThread(Thread):
         def gs():
             id, cmd = None, None
             if request.method == 'POST':
-                cmd = request.form.get('cmd')
                 id = request.form.get('id')
+                cmd = request.form.get('cmd')
             else:
-                cmd = request.args.get('cmd')
                 id = request.args.get('id')
+                cmd = request.args.get('cmd')
             return self.proc(cmd, id)
+
+        @app.route('/gs_running', methods=['GET', 'POST'])
+        def gs_running():
+            dirs = STool.getServerDirs()
+            ret = list()
+            for dir in dirs:
+                s = ServerManager.getServer(dir)
+                if s.isValid() and s.isRunning():
+                    ret.append(STool.getServerDirID(dir))
+            ret.sort()
+            return self.resp(0, '', data=ret)
 
         try:
             app.run(host=self._host, port=self._port)
