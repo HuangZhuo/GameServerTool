@@ -35,17 +35,15 @@ def get_free_space_gb(dirname):
     return int(free_bytes)
 
 
-def counter(start=0):
+def counter(start=0, step=1):
     # 简单自增计数器
-    start -= 1
+    def __counter(start=0, step=1):
+        while True:
+            yield start
+            start += step
 
-    def _plus():
-        # inspired by 'python-cheatsheet'
-        nonlocal start
-        start += 1
-        return start
-
-    return _plus
+    gen = __counter(start, step)
+    return lambda: next(gen)
 
 
 class GUITool:
