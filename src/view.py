@@ -100,7 +100,7 @@ class ServerItemBasic(ServerItem):
         if not STool.isServerDirExists(name):
             ServerManager.clear(name)
             self.destroy()
-            return
+            return False
         server = ServerManager.getServer(name)
         text = server.getInfo(debug=CFG.DEBUG_MODE)
         fg = None
@@ -109,6 +109,7 @@ class ServerItemBasic(ServerItem):
         else:
             fg = 'black'
         self.setText(text, fg)
+        return True
 
     def onClick(self, func):
         ret, err = ServerManager.getServer(self.getName()).call(func)
@@ -144,13 +145,23 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
             return
 
         items = GUITool.getChildsByType(self, ServerItem)
-        if len(items) < ServerManager.getCount():
-            # 处理新增
-            self.init()
-            return
+        dirty = False
+        while True:
+            if len(items) < ServerManager.getCount():
+                # 处理新增
+                dirty = True
+                break
 
-        for w in items:
-            w.refresh()
+            for w in items:
+                if not w.refresh():
+                    # 处理删除
+                    dirty = True
+                    break
+
+            break
+
+        if dirty:
+            self.init()
 
     def getAll(self):
         ret = GUITool.getChildsByType(self, ServerItem)

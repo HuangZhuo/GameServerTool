@@ -88,7 +88,7 @@ class GUI(tkinter.Tk):
         # 执行命令插件
         if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
             plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
-
+        # Web服务插件
         plugin.PluginWebService(self).pack()
 
     def onUpdate(self):
@@ -104,9 +104,14 @@ class GUI(tkinter.Tk):
         logging.info('Server Tools Closed!')
 
     def initServerList(self):
+        '''强制重新初始化服务器器列表
+        - 创建/删除服务器时
+        - 游戏服目录在资源管理器发生变更时
+        '''
         self._frameServers.init()
 
     def refreshServerList(self, name=None):
+        '''刷新列表内服务器状态'''
         self._frameServers.refresh(name)
 
     def reload(self):
