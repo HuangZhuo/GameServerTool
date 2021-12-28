@@ -21,13 +21,14 @@ import view
 import plugin
 import tkicon
 
+TITLE = '传奇游戏服管理'
 VERSION = '3.4.1'
 
 
 class GUI(tkinter.Tk):
-    def __init__(self, title):
+    def __init__(self):
         super().__init__()
-        self.title('{} v{} [{}]'.format(title, VERSION, CFG.SERVER_ROOT))
+        self.title('{} v{} [{}]'.format(TITLE, VERSION, CFG.SERVER_ROOT))
         self.resizable(False, False)
         tkicon.use(self.iconbitmap)
 
@@ -244,12 +245,17 @@ def main():
     logging.basicConfig(filename='cmd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     try:
-        assert os.path.exists(CFG.SERVER_ROOT), "服务器根目录不存在"
-        assert os.path.exists(CFG.SERVER_TEMPLATE), "服务器模板路径不存在"
-        GUI("传奇游戏服管理").mainloop()
+        if not os.path.exists(CFG.SERVER_ROOT):
+            GUITool.MessageBox('服务器根目录不存在')
+            return
+        if not os.path.exists(CFG.SERVER_TEMPLATE):
+            GUITool.MessageBox('服务器模板路径不存在')
+            return
+        GUI().mainloop()
     except:
-        print(traceback.format_exc())
         logging.error(traceback.format_exc())
+        GUITool.MessageBox(traceback.format_exc())
+        return
 
 
 if __name__ == '__main__':
