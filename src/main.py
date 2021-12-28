@@ -187,6 +187,8 @@ class GUI(tkinter.Tk):
             if ret:
                 self.refreshServerList(v)
             else:
+                # https://stackoverflow.com/questions/16083491/make-a-tkinter-toplevel-active
+                self.focus_force()
                 if GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
                     ServerManager.getServer(v).exit(bForce=True)
                 else:
@@ -223,6 +225,7 @@ class GUI(tkinter.Tk):
                 continue
             ret, err = ServerManager.getServer(v).restart()
             if not ret:
+                self.focus_force()
                 GUITool.MessageBox(err)
                 break
 

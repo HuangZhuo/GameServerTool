@@ -114,13 +114,16 @@ class ServerItemBasic(ServerItem):
     def onClick(self, func):
         ret, err = ServerManager.getServer(self.getName()).call(func)
         if not ret:
+            self.focus_force()
             GUITool.MessageBox(err)
 
     def onClickExit(self):
         s = ServerManager.getServer(self.getName())
         ret, err = s.exit()
-        if not ret and GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
-            s.exit(bForce=True)
+        if not ret:
+            self.focus_force()
+            if GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
+                s.exit(bForce=True)
 
 
 # 单列高度无限扩展视图（原始版本）
