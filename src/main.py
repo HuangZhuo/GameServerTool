@@ -21,7 +21,7 @@ import view
 import plugin
 import tkicon
 
-VERSION = '3.4'
+VERSION = '3.4.1'
 
 
 class GUI(tkinter.Tk):
@@ -187,8 +187,10 @@ class GUI(tkinter.Tk):
             if ret:
                 self.refreshServerList(v)
             else:
-                GUITool.MessageBox(err)
-                break
+                if GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
+                    ServerManager.getServer(v).exit(bForce=True)
+                else:
+                    break
 
     def onHideServerConsoleClick(self):
         for v in self.getSelectedServers():

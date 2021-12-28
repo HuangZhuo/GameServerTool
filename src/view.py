@@ -92,7 +92,7 @@ class ServerItemBasic(ServerItem):
             GUITool.createBtn('开启', lambda: self.onClick('start'), parent=self, grid=(0, nextcol(), 2))
             GUITool.createBtn('热更', lambda: self.onClick('hotUpdate'), parent=self, grid=(0, nextcol(), 2))
             GUITool.createBtn('重启', lambda: self.onClick('restart'), parent=self, grid=(0, nextcol(), 2))
-            GUITool.createBtn('关闭', lambda: self.onClick('exit'), parent=self, grid=(0, nextcol(), 2))
+            GUITool.createBtn('关闭', self.onClickExit, parent=self, grid=(0, nextcol(), 2))
         GUITool.createBtn('控制台', lambda: self.onClick('showConsoleWindow'), parent=self, grid=(0, nextcol(), 2))
 
     def refresh(self):
@@ -115,6 +115,12 @@ class ServerItemBasic(ServerItem):
         ret, err = ServerManager.getServer(self.getName()).call(func)
         if not ret:
             GUITool.MessageBox(err)
+
+    def onClickExit(self):
+        s = ServerManager.getServer(self.getName())
+        ret, err = s.exit()
+        if not ret and GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
+            s.exit(bForce=True)
 
 
 # 单列高度无限扩展视图（原始版本）

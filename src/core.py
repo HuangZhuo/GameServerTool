@@ -544,7 +544,7 @@ class ServerV3(IServer):
             time.sleep(CFG.SERVER_EXIT_CHECK_INTERVAL)
             timeout += CFG.SERVER_EXIT_CHECK_INTERVAL
             if timeout >= CFG.SERVER_EXIT_TIMEOUT:
-                return False, '服务器关闭超时，请检查服务器窗口输出'
+                return False, '服务器关闭超时'
         logging.info('服务器[%s][%s]关闭成功,耗时%.2f秒', self._dirname, self.getCfg().name, timeout)
         return True, None
 
