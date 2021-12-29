@@ -252,6 +252,8 @@ def main():
             GUITool.MessageBox('服务器模板路径不存在')
             return
         GUI().mainloop()
+    except SystemExit:
+        return
     except:
         logging.error(traceback.format_exc())
         GUITool.MessageBox(traceback.format_exc())
