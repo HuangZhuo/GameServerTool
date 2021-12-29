@@ -256,7 +256,8 @@ class DB:
     def save(self):
         if len(self._data) == 0:
             # 没有数据直接删除文件
-            os.remove(self._dbfile)
+            if os.path.exists(self._dbfile):
+                os.remove(self._dbfile)
         else:
             with open(self._dbfile, 'w', encoding='utf-8') as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=4)

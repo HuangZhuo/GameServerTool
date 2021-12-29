@@ -71,7 +71,7 @@ class ServerItem(tkinter.Frame):
         return self._btn.var.get()
 
     def refresh(self):
-        pass
+        return True
 
     def setText(self, text, color=None):
         self._btn['text'] = text
@@ -216,13 +216,14 @@ class ServerItemPlan(ServerItem):
         if not STool.isServerDirExists(name):
             PlanManager.getInstance().getPlan(name).clear()
             self.destroy()
-            return
+            return False
         server = ServerManager.getServer(self._name)
         plan = PlanManager.getInstance().getPlan(self._name)
         # 修改按钮文字，颜色
         text = '{}:{}'.format(server.getCfg().title, plan)
         fg = 'black' if plan.empty else 'blue'
         self.setText(text, fg)
+        return True
 
     def clearPlan(self):
         PlanManager.getInstance().getPlan(self.getName()).clear()
