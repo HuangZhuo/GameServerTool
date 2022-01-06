@@ -1,4 +1,6 @@
-psutil==5.8.0
 pywin32==300
+SLPP==1.2.3
+psutil==5.8.0
 uiautomation==2.0.11
 Flask==2.0.1
+win32gui==221.6

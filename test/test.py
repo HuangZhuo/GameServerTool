@@ -51,3 +51,7 @@ class TestCommon(unittest.TestCase):
         # 时间差值
         print((now - pydatetime).total_seconds())
         print((pydatetime - now).total_seconds())
+
+    def test_fmt(self):
+        print('octlog{0}'.format(5))  # octlog5
+        print('octlog{:d}'.format(5))  # octlog5

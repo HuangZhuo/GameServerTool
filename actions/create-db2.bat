@@ -15,7 +15,7 @@ set logdb=octlog%id%
 set gamesql=%~p0octgame.sql
 set logsql=%~p0octlog.sql
 
-echo show databases; > %~p0list-db.sql
+echo show databases like '%dbname%'; > %~p0list-db.sql
 mysql -uroot -p123456 -P3310 < %~p0list-db.sql | findstr %gamedb% && echo %gamedb% already exists! || (
     echo create database %gamedb%; > %~p0create-db.sql
     mysql -uroot -p123456 -P3310 < %~p0create-db.sql
@@ -23,6 +23,7 @@ mysql -uroot -p123456 -P3310 < %~p0list-db.sql | findstr %gamedb% && echo %gamed
     echo %gamedb% is created!
 )
 
+echo show databases like '%logdb%'; > %~p0list-db.sql
 mysql -uroot -p123456 -P3311 < %~p0list-db.sql | findstr %logdb% && echo %logdb% already exists! || (
     echo create database %logdb%; > %~p0create-db.sql
     mysql -uroot -p123456 -P3311 < %~p0create-db.sql

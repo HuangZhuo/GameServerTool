@@ -6,7 +6,7 @@ set dbname=octgame%1
 @REM echo %dbname%
 @REM echo %~p0
 
-echo show databases; > %~p0list-db.sql
+echo show databases like '%dbname%'; > %~p0list-db.sql
 mysql -uroot -p123456 -P3310 < %~p0list-db.sql | findstr %dbname% && echo database already exists! && goto finish
 
 echo create database %dbname%; > %~p0create-db.sql

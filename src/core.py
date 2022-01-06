@@ -15,6 +15,7 @@ from datetime import timedelta
 from enum import Enum
 from hashlib import md5
 from abc import ABCMeta, abstractmethod
+from slpp import slpp
 
 from common import get_hwnds_for_pid
 from common import INI
@@ -696,16 +697,20 @@ class ServerV3(IServer):
 
     def getVersion(self):
         # fixme: code more flexible
-        filename = os.path.join(self._serverPath, 'data/long/script/init.lua')
+        filename = os.path.join(self._serverPath, 'data/long/script/data/NDS.lua')
         if not os.path.exists(filename):
-            filename = os.path.join(self._serverPath, '../../data/long/script/init.lua')
+            filename = os.path.join(self._serverPath, '../../data/long/script/data/NDS.lua')
             if not os.path.exists(filename):
                 return None
-        str = ''
+        str = None
         with open(filename, 'r', encoding='utf8') as f:
             str = f.read()
-        m = re.search(r'[Vv]([0-9]+.[0-9]+.[0-9]+)', str)
-        return m.group(1) if m else None
+        m = re.search(r'return(.*)', str, re.DOTALL)
+        if m:
+            cfg = slpp.decode(m.group(1))
+            return cfg['version']
+        else:
+            return None
 
     def call(self, funcname, *args):
         api = getattr(self, funcname)
