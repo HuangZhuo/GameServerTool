@@ -1,27 +1,13 @@
 # GameServerTool
 传奇游戏服多服运维工具
 
+## [文档](https://gitee.com/JoeyHw/GameServerTool/wikis/pages)
+
 ## 功能
 - 批量创建服务器，支持创建脚本和配置文件自定义规则
 - 批量开启，关闭，重启，更新服务器
 - 支持计划任务，定时操作服务器
 - 支持通过web接口操作服务器，和游戏后台管理系统配合使用
 
-## 版本历史
-### V3.4
-- 提供web接口
-### V3.3
-- 服务器计划任务功能
-### V3.2
-- ~202191前线上服役版本
-
-## 打包EXE
+## 打包
 run `build.bat`, python3 only!
-
-| 依赖库       | usage                |
-| ------------ | -------------------- |
-| uiautomation | 窗口查找，命令输入   |
-| psutil       | 进程管理             |
-| pywin32      | 通过进程查找窗口句柄 |
-| Flask        | web service          |
-
