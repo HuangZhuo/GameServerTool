@@ -3,7 +3,6 @@ from queue import Queue
 from flask import Flask, request
 import json
 
-from core import CFG
 from core import STool
 from core import ServerManager
 
@@ -84,9 +83,7 @@ class WebServerThread(Thread):
 
 
 class WebServer():
-    def __init__(self) -> None:
-        host = CFG.Get('WebServer', 'host', 'localhost')
-        port = CFG.Get('WebServer', 'port', '5000')
+    def __init__(self, host, port) -> None:
         self._errs = Queue()
         self._service = WebServerThread(host, port, self._errs)
 
@@ -108,7 +105,3 @@ class WebServer():
         if not self._errs.empty():
             return self._errs.get()
         return None
-
-
-# if __name__ == '__main__':
-#     WebServer().start()

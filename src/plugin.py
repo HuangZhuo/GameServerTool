@@ -6,6 +6,7 @@ import re
 import logging
 from webserver import WebServer
 
+from core import CFG
 from core import STool
 from core import ServerManager
 from common import counter
@@ -252,21 +253,24 @@ class PluginWebService(tkinter.Frame, IPlugin):
     def __init__(self, gui):
         tkinter.Frame.__init__(self)
         self._gui = gui
-        self._lbl = tkinter.Label(self, text='WebService准备启动')
+        self._lbl = tkinter.Label(self, text='WebService准备启动..')
         self._lbl.grid(row=0, column=0)
+
+        self._host = CFG.Get('WebServer', 'host', 'localhost')
+        self._port = CFG.Get('WebServer', 'port', '5000')
         self._service = None
         self.after(2000, self.initWebServer)
 
     def initWebServer(self):
-        self._service = WebServer().start()
+        self._service = WebServer(self._host, self._port).start()
         self.after(2000, self.checkWebServer)
 
     def checkWebServer(self):
         if not self._service.running:
-            self._lbl['text'] = 'WebService停止运行:{}'.format(self._service.next_error)
+            self._lbl['text'] = f'WebService停止运行:{self._service.next_error}'
             self._lbl['fg'] = 'red'
             return
         else:
-            self._lbl['text'] = 'WebService运行中'
+            self._lbl['text'] = f'WebService运行中@{self._host}:{self._port}'
             self._lbl['fg'] = 'gray'
             self.after(1000, self.checkWebServer)
