@@ -776,7 +776,9 @@ class ServerManager:
             return False, str(e)
 
     @staticmethod
-    def getServer(name) -> ServerV3:
+    def getServer(name=None, id=None) -> ServerV3:
+        if id:
+            name = STool.getServerDirName(id)
         if not ServerManager.__servers.get(name):
             ServerManager.__servers[name] = ServerV3(name)
         return ServerManager.__servers[name]

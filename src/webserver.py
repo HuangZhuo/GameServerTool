@@ -18,16 +18,16 @@ class WebServerThread(Thread):
     def run(self):
         app = Flask(__name__)
 
+        @app.route('/', methods=['GET', 'POST'])
+        def index():
+            return 'GameServerTool is running..'
+
         @app.route('/gs', methods=['GET', 'POST'])
         def gs():
-            id, cmd = None, None
-            if request.method == 'POST':
-                id = request.form.get('id')
-                cmd = request.form.get('cmd')
-            else:
-                id = request.args.get('id')
-                cmd = request.args.get('cmd')
-            return self.proc(cmd, id)
+            data = self.req(request)
+            id = data.get('id')
+            cmd = data.get('cmd')
+            return self.proc(id, cmd, data)
 
         @app.route('/gs_running', methods=['GET', 'POST'])
         def gs_running():
@@ -45,7 +45,7 @@ class WebServerThread(Thread):
         except Exception as e:
             self._errs.put(str(e))
 
-    def proc(self, cmd, id):
+    def proc(self, id, cmd, data):
         # todo 检查参数有效性
         if cmd == 'create':
             ret, err = ServerManager.createServer(id)
@@ -67,12 +67,23 @@ class WebServerThread(Thread):
             ret, err = ServerManager.deleteServer(id=id)
             return self.resp(0) if ret else self.resp(-1, err)
         elif cmd in ('start', 'hotUpdate', 'exit'):
-            dirname = STool.getServerDirName(id)
-            s = ServerManager.getServer(dirname)
+            s = ServerManager.getServer(id=id)
             ret, err = s.call(cmd)
             return self.resp(0) if ret else self.resp(-1, err)
+        elif cmd == 'gm':
+            if not 'order' in data:
+                return self.resp(-1, 'order参数错误')
+            s = ServerManager.getServer(id=id)
+            ret, resp = s.execute(data.get('order'))
+            return self.resp(0 if ret else -1, resp)
         else:
             return self.resp(-1, '参数错误')
+
+    def req(self, request):
+        if request.method == 'POST':
+            return request.form
+        elif request.method == 'GET':
+            return request.args
 
     def resp(self, code, msg='', data=None):
         return json.dumps({

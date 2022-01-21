@@ -22,7 +22,7 @@ import plugin
 import tkicon
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.4.2'
+VERSION = '3.4.3'
 
 
 class GUI(tkinter.Tk):
