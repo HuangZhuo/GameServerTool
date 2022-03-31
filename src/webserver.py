@@ -81,7 +81,12 @@ class WebServerThread(Thread):
 
     def req(self, request):
         if request.method == 'POST':
-            return request.form
+            if len(request.json) > 0:
+                # for postman
+                return request.json
+            else:
+                # for php http_post
+                return request.form
         elif request.method == 'GET':
             return request.args
 
