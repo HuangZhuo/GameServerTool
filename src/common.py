@@ -92,54 +92,57 @@ class GUITool:
 
 class INI:
     def __init__(self, filename):
-        self.__filename = filename
-        self.__parser = configparser.ConfigParser()
-        self.__loaded = False
+        self._filename = filename
+        self._parser = configparser.ConfigParser()
+        self._loaded = False
         self.Load()
 
     @property
     def filename(self):
-        return self.__filename
+        return self._filename
 
     @property
     def paser(self):
-        return self.__parser
+        return self._parser
 
     def Load(self):
-        if self.__loaded:
-            logging.info('配置文件[%s]重新读取', self.__filename)
-        read_ok = self.__parser.read(self.__filename)
-        self.__loaded = len(read_ok) > 0
-        if not self.__loaded:
-            logging.warning('配置文件[%s]读取失败', self.__filename)
+        if self._loaded:
+            logging.info('配置文件[%s]重新读取', self._filename)
+        read_ok = self._parser.read(self._filename)
+        self._loaded = len(read_ok) > 0
+        if not self._loaded:
+            logging.warning('配置文件[%s]读取失败', self._filename)
 
     def Save(self):
-        with open(self.__filename, 'w+') as f:
-            self.__parser.write(f)
+        with open(self._filename, 'w+') as f:
+            self._parser.write(f)
 
     def SaveOptionIfNotExist(self, section, key, fallback):
-        if not self.__parser.has_option(section, key):
-            self.__parser.set(section, key, str(fallback))
+        if not self._parser.has_option(section, key):
+            self._parser.set(section, key, str(fallback))
             self.Save()
 
     def Set(self, section, key, value):
-        return self.__parser.set(section, key, value)
+        return self._parser.set(section, key, value)
 
     def Get(self, section, key, fallback=''):
-        return self.__parser.get(section, key, fallback=fallback)
+        return self._parser.get(section, key, fallback=fallback)
 
     def GetInt(self, section, key, fallback=-1):
-        return self.__parser.getint(section, key, fallback=fallback)
+        return self._parser.getint(section, key, fallback=fallback)
 
     def GetFloat(self, section, key, fallback=-1):
-        return self.__parser.getfloat(section, key, fallback=fallback)
+        return self._parser.getfloat(section, key, fallback=fallback)
 
     def GetBool(self, section, key, fallback=False):
-        return self.__parser.getboolean(section, key, fallback=fallback)
+        return self._parser.getboolean(section, key, fallback=fallback)
+
+    def HasSection(self, section):
+        return self._parser.has_section(section)
 
     def GetItems(self, section):
         # 返回(k,v)元组列表
-        return self.__parser.items(section) if self.__parser.has_section(section) else []
+        return self._parser.items(section) if self._parser.has_section(section) else []
 
 
 class Profiler:

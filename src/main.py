@@ -22,7 +22,7 @@ import plugin
 import tkicon
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.4.3'
+VERSION = '3.5.0'
 
 
 class GUI(tkinter.Tk):
@@ -90,7 +90,9 @@ class GUI(tkinter.Tk):
         if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
             plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
         # Web服务插件
-        plugin.PluginWebService(self).pack()
+        plugin.PluginWebService(self).pack(side=tkinter.LEFT, padx=10)
+        # 自动开服插件
+        plugin.PluginServerMgr(self).pack(side=tkinter.LEFT, padx=10)
 
     def onUpdate(self):
         PlanManager.getInstance().check()

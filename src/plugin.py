@@ -1,16 +1,15 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 
-import tkinter
-import re
+import json
 import logging
-from webserver import WebServer
+import re
+import tkinter
+from urllib import request
 
-from core import CFG
-from core import STool
-from core import ServerManager
-from common import counter
-from common import GUITool
+from common import GUITool, counter
+from core import CFG, ServerManager, STool
+from webserver import WebServer
 
 
 class IPlugin:
@@ -253,7 +252,7 @@ class PluginWebService(tkinter.Frame, IPlugin):
     def __init__(self, gui):
         tkinter.Frame.__init__(self)
         self._gui = gui
-        self._lbl = tkinter.Label(self, text='WebService准备启动..')
+        self._lbl = tkinter.Label(self, text='[WebService]准备启动..')
         self._lbl.grid(row=0, column=0)
 
         self._host = CFG.Get('WebServer', 'host', 'localhost')
@@ -267,10 +266,49 @@ class PluginWebService(tkinter.Frame, IPlugin):
 
     def checkWebServer(self):
         if not self._service.running:
-            self._lbl['text'] = f'WebService停止运行:{self._service.next_error}'
+            self._lbl['text'] = f'[WebService]停止运行:{self._service.next_error}'
             self._lbl['fg'] = 'red'
             return
         else:
-            self._lbl['text'] = f'WebService运行中@{self._host}:{self._port}'
+            self._lbl['text'] = f'[WebService]运行中@{self._host}:{self._port}'
             self._lbl['fg'] = 'gray'
             self.after(1000, self.checkWebServer)
+
+
+class PluginServerMgr(tkinter.Frame, IPlugin):
+    def __init__(self, gui):
+        tkinter.Frame.__init__(self)
+        self._lbl = tkinter.Label(self, text='[自动开服]检测中..', fg='gray')
+        self._lbl.grid(row=0, column=0)
+        if not CFG.HasSection('PluginServerMgr') or not CFG.GetBool('PluginServerMgr', 'enabled'):
+            self._lbl['text'] = f'[自动开服]已关闭'
+            return
+
+        data = CFG.GetItems('PluginServerMgr')
+        # print(data)
+        self._data = json.dumps(dict(data)).encode('utf-8')
+        self._checkInterval = CFG.GetInt('PluginServerMgr', 'check_interval', 5) * 1000
+        self._gameId = CFG.GetInt('PluginServerMgr', 'game_id', 0)
+        self._phpSessionId = CFG.Get('PluginServerMgr', 'PHPSESSID', '')
+        if self._checkInterval > 0 and self._gameId and self._phpSessionId:
+            self._lbl['text'] = f'[自动开服]运行中'
+            self.after(self._checkInterval, self.check)
+        else:
+            self._lbl['text'] = f'[自动开服]开启失败'
+            self._lbl['fg'] = 'red'
+
+    def check(self):
+        url = f'http://127.0.0.1:81/Admin/Ctrl/server_add_check.html?gameid={self._gameId}'
+        header = {'Cookie': f'game_id={self._gameId}; PHPSESSID={self._phpSessionId}; sdmenu_my_menu=111'}
+        req = request.Request(url=url, headers=header, data=self._data)
+        try:
+            resp = request.urlopen(req)
+            if resp.url.find('login.html') > 0:
+                self._lbl['text'] = f'[自动开服]PHPSESSID 已失效'
+                self._lbl['fg'] = 'red'
+                return
+            resp_msg = resp.read().decode()
+            # print('PluginServerMgr', resp_msg)
+        except Exception as e:
+            print(repr(e))
+        self.after(self._checkInterval, self.check)

@@ -55,3 +55,8 @@ class TestCommon(unittest.TestCase):
     def test_fmt(self):
         print('octlog{0}'.format(5))  # octlog5
         print('octlog{:d}'.format(5))  # octlog5
+
+    def test_array_2_dict(self):
+        arr = [['a', 1], ['b', 2]]
+        di = dict(arr)
+        print(di)  # works well!
