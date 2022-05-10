@@ -767,19 +767,22 @@ class ServerManager:
             name = STool.getServerDirName(id)
         if not name:
             return False, '参数错误'
+        if not STool.isServerDirExists(name):
+            return False, '服务器目录不存在:{}'.format(name)
         if ServerManager.getServer(name).isRunning():
             return False, '请先关闭服务器:{}'.format(name)
         try:
             STool.rmServerDir(name)
             return True, None
         except Exception as e:
-            return False, str(e)
+            return False, repr(e)
 
     @staticmethod
     def getServer(name=None, id=None) -> ServerV3:
         if id:
             name = STool.getServerDirName(id)
         if not ServerManager.__servers.get(name):
+            assert (STool.isServerDirExists(name))
             ServerManager.__servers[name] = ServerV3(name)
         return ServerManager.__servers[name]
 
