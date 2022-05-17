@@ -1,3 +1,4 @@
+from datetime import date
 import unittest
 from src.common import counter
 
@@ -60,3 +61,7 @@ class TestCommon(unittest.TestCase):
         arr = [['a', 1], ['b', 2]]
         di = dict(arr)
         print(di)  # works well!
+
+    def test_date(self):
+        d = date.today()
+        print(d)

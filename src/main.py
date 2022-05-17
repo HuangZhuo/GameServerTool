@@ -9,7 +9,7 @@ import os
 import time
 import logging, traceback
 
-from common import counter, get_free_space_gb
+from common import counter
 from common import GUITool
 from common import Profiler
 from core import Action
@@ -22,7 +22,7 @@ import plugin
 import tkicon
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.5.1'
+VERSION = '3.6.0'
 
 
 class GUI(tkinter.Tk):
@@ -52,8 +52,7 @@ class GUI(tkinter.Tk):
         self.config(menu=mebubar)
 
     def initUI(self):
-        self._lblState = tkinter.Label(self)
-        self._lblState.pack(fill=tkinter.X)
+        plugin.PluginDiskFreeSpace(self).pack()
         self._frameServers = view.ServerListViewFixedMultiCol(self)
         self._frameServers.pack(padx=5)
 
@@ -89,16 +88,23 @@ class GUI(tkinter.Tk):
         # 执行命令插件
         if CFG.GetBool('Plugin', 'EnableExecuteCommand', False):
             plugin.PluginExecuteCommand(self).pack(padx=5, pady=5)
-        # Web服务插件
-        plugin.PluginWebService(self).pack(side=tkinter.LEFT, padx=10)
-        # 自动开服插件
-        plugin.PluginServerMgr(self).pack(side=tkinter.LEFT, padx=10)
+
+        self._plugins = {
+            'PluginWebService': plugin.PluginWebService(self).pack(side=tkinter.LEFT, padx=10),  # Web服务插件
+            'PluginServerMgr': plugin.PluginServerMgr(self).pack(side=tkinter.LEFT, padx=10),  # 自动开服插件
+            'PluginServerMonitor': plugin.PluginServerMonitor(self).pack(side=tkinter.LEFT, padx=10),
+            'PluginDingTalkRobot': plugin.PluginDingTalkRobot(self).pack(side=tkinter.LEFT, padx=10),
+        }
+
+    def callPlugin(self, plugin_name, func_name, *args):
+        plugin = self._plugins[plugin_name] if plugin_name in self._plugins else None
+        if not plugin or not plugin.enabled:
+            return
+        api = getattr(plugin, func_name)
+        if api: return api(*args)
 
     def onUpdate(self):
         PlanManager.getInstance().check()
-        gb = get_free_space_gb(CFG.SERVER_ROOT)
-        self._lblState['text'] = '磁盘剩余空间 [{} GB]'.format(gb)
-        self._lblState['fg'] = 'black' if gb > CFG.DISK_LEFT_SPACE_WARING_NUM_GB else 'red'
         self.refreshServerList()
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 

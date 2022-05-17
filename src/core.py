@@ -1,24 +1,24 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 
-import os
-import subprocess, psutil
-import logging
-import uiautomation
-import time
-import shutil
-import re
-import socket
 import json
-from datetime import datetime
-from datetime import timedelta
+import logging
+import os
+import re
+import shutil
+import socket
+import subprocess
+import time
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
 from enum import Enum
 from hashlib import md5
-from abc import ABCMeta, abstractmethod
+
+import psutil
+import uiautomation
 from slpp import slpp
 
-from common import get_hwnds_for_pid
-from common import INI
+from common import INI, get_hwnds_for_pid
 
 
 class CMD_INI(INI):
@@ -241,8 +241,8 @@ class DB:
                 if len(content) > 0:
                     self._data = json.loads(content)
 
-    def get(self, k):
-        return self._data.get(k)
+    def get(self, k, default=None):
+        return self._data.get(k, default)
 
     def set(self, k, v):
         self._data[k] = v
@@ -500,6 +500,14 @@ class ServerV3(IServer):
                 err = '查找失败'
         return None, err
 
+    @property
+    def dirname(self):
+        return self._dirname
+
+    @property
+    def name(self):  # 服务器可读名称
+        return f'{self.getCfg().name}-{self.getCfg().title}'
+
     def start(self):
         if not self.isValid():
             return False, '服务器不可用'
@@ -568,7 +576,7 @@ class ServerV3(IServer):
 
     def execute_w(self, cmd):
         '''
-        查找窗口，模拟向游戏服控制台窗口键入命令，无法获取后台返回值
+        通过查找窗口模拟输入命令。无法获取后台返回值
         '''
         # assert (self.isRunning())
         window, err = self._findWindow()
@@ -584,7 +592,7 @@ class ServerV3(IServer):
 
     def execute_s(self, cmd):
         '''
-        不查找窗口，通过socket连接向游戏服发送命令，并返回结果
+        通过socket连接向游戏服发送命令。并返回结果
         这种方式只支持游戏服[DoSystemCommand]中的命令，不支持exit（退出游戏服）
         （参考了后台跟游戏服通信方式）
         '''

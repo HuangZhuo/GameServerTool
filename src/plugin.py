@@ -5,21 +5,46 @@ import json
 import logging
 import re
 import tkinter
+from datetime import date
 from urllib import request
 
-from common import GUITool, counter
-from core import CFG, ServerManager, STool
+from common import GUITool, counter, get_free_space_gb
+from core import CFG, DB, ServerManager, STool
 from webserver import WebServer
 
 
+class FrameEx(tkinter.Frame):
+    def __init__(self, *args, **kw) -> None:
+        super().__init__(*args, **kw)
+
+    def pack(self, *args, **kw):
+        # pack() function -> method
+        super().pack(*args, **kw)
+        return self
+
+
 class IPlugin:
-    pass
+    def __init__(self, name=None) -> None:
+        self._section = self.__class__.__name__
+        self._name = name if name else self._section
+
+    @property
+    def section(self):  # INI配置文件区块
+        return self._section
+
+    @property
+    def name(self):  # 插件名称
+        return self._name
+
+    @property
+    def enabled(self):  # 插件是否开启
+        return CFG.HasSection(self._section) and CFG.GetBool(self._section, 'enabled')
 
 
 # 批量创建服务器插件
-class PluginCreateMultiServers(tkinter.Frame, IPlugin):
+class PluginCreateMultiServers(FrameEx, IPlugin):
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
+        FrameEx.__init__(self)
         self._gui = gui
         self.initUI()
 
@@ -28,7 +53,7 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
         tkinter.Label(self, text='批量创建:').grid(row=0, column=nextcol())
         self._edit = tkinter.Entry(self, width=16)
         self._edit.grid(row=0, column=nextcol())
-        self._edit.bind("<Return>", lambda _: self.onCreateMultiServerClick())
+        self._edit.bind('<Return>', lambda _: self.onCreateMultiServerClick())
         GUITool.createBtn('执行', self.onCreateMultiServerClick, parent=self, grid=(0, nextcol()))
         tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
@@ -99,9 +124,9 @@ class PluginCreateMultiServers(tkinter.Frame, IPlugin):
 
 
 # 控制台执行命令插件
-class PluginExecuteCommand(tkinter.Frame, IPlugin):
+class PluginExecuteCommand(FrameEx, IPlugin):
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
+        FrameEx.__init__(self)
         self._gui = gui
         self.initUI()
 
@@ -110,7 +135,7 @@ class PluginExecuteCommand(tkinter.Frame, IPlugin):
         tkinter.Label(self, text='输入命令:').grid(row=0, column=nextcol())
         self._edit = tkinter.Entry(self, width=16)
         self._edit.grid(row=0, column=nextcol())
-        self._edit.bind("<Return>", lambda _: self.onExecuteClick())
+        self._edit.bind('<Return>', lambda _: self.onExecuteClick())
         GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextcol()))
         tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
@@ -137,14 +162,14 @@ class PluginExecuteCommand(tkinter.Frame, IPlugin):
 
 
 # 服务器选择器
-class PluginServerSelector(tkinter.Frame, IPlugin):
+class PluginServerSelector(FrameEx, IPlugin):
     FILTER_ALL = lambda s: True
     FILTER_NONE = lambda s: False
     FILTER_RUNNING = lambda s: ServerManager.getServer(s).isRunning()
     FILTER_CLOSED = lambda s: not ServerManager.getServer(s).isRunning()
 
     def __init__(self, gui):
-        tkinter.Frame.__init__(self, gui)
+        FrameEx.__init__(self, gui)
         # self._gui = gui
         self._serverListView = gui.getServerListView()
         self.initUI()
@@ -159,7 +184,7 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
         tkinter.Label(self, text='选择范围:').grid(row=0, column=nextcol())
         self._edit = tkinter.Entry(self, width=10)
         self._edit.grid(row=0, column=nextcol())
-        self._edit.bind("<Return>", lambda _: self.onExecuteClick())
+        self._edit.bind('<Return>', lambda _: self.onExecuteClick())
         GUITool.createBtn('执行', self.onExecuteClick, parent=self, grid=(0, nextcol()))
         GUITool.GridConfig(self, padx=5)
 
@@ -213,9 +238,9 @@ class PluginServerSelector(tkinter.Frame, IPlugin):
 
 
 # 扩展操作
-class PluginExtendOperations(tkinter.Frame, IPlugin):
+class PluginExtendOperations(FrameEx, IPlugin):
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
+        FrameEx.__init__(self)
         self._gui = gui
         self.initUI()
 
@@ -248,11 +273,12 @@ class PluginExtendOperations(tkinter.Frame, IPlugin):
                 server.hotUpdate()
 
 
-class PluginWebService(tkinter.Frame, IPlugin):
+class PluginWebService(FrameEx, IPlugin):
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
+        FrameEx.__init__(self)
+        IPlugin.__init__(self, 'WebService')
         self._gui = gui
-        self._lbl = tkinter.Label(self, text='[WebService]准备启动..')
+        self._lbl = tkinter.Label(self, text=f'[{self.name}]准备启动..')
         self._lbl.grid(row=0, column=0)
 
         self._host = CFG.Get('WebServer', 'host', 'localhost')
@@ -261,40 +287,42 @@ class PluginWebService(tkinter.Frame, IPlugin):
         self.after(2000, self.initWebServer)
 
     def initWebServer(self):
+        # self._gui.callPlugin('PluginDingTalkRobot', 'send', 'initWebServer')
         self._service = WebServer(self._host, self._port).start()
         self.after(2000, self.checkWebServer)
 
     def checkWebServer(self):
         if not self._service.running:
-            self._lbl['text'] = f'[WebService]停止运行:{self._service.next_error}'
+            self._lbl['text'] = f'[{self.name}]停止运行:{self._service.next_error}'
             self._lbl['fg'] = 'red'
             return
         else:
-            self._lbl['text'] = f'[WebService]运行中@{self._host}:{self._port}'
+            self._lbl['text'] = f'[{self.name}]运行中@{self._host}:{self._port}'
             self._lbl['fg'] = 'gray'
             self.after(1000, self.checkWebServer)
 
 
-class PluginServerMgr(tkinter.Frame, IPlugin):
+class PluginServerMgr(FrameEx, IPlugin):
     def __init__(self, gui):
-        tkinter.Frame.__init__(self)
-        self._lbl = tkinter.Label(self, text='[自动开服]检测中..', fg='gray')
+        FrameEx.__init__(self)
+        IPlugin.__init__(self, '自动开服')
+        self._lbl = tkinter.Label(self, text='[{self._name}]检测中..', fg='gray')
         self._lbl.grid(row=0, column=0)
-        if not CFG.HasSection('PluginServerMgr') or not CFG.GetBool('PluginServerMgr', 'enabled'):
-            self._lbl['text'] = f'[自动开服]已关闭'
+        if not self.enabled:
+            self._lbl['text'] = f'[{self._name}]已关闭'
             return
 
-        data = CFG.GetItems('PluginServerMgr')
+        data = CFG.GetItems(self.section)
         # print(data)
         self._data = json.dumps(dict(data)).encode('utf-8')
-        self._checkInterval = CFG.GetInt('PluginServerMgr', 'check_interval', 5) * 1000
-        self._gameId = CFG.GetInt('PluginServerMgr', 'game_id', 0)
-        self._phpSessionId = CFG.Get('PluginServerMgr', 'PHPSESSID', '')
+        self._checkInterval = CFG.GetInt(self.section, 'check_interval', 5) * 1000
+        self._gameId = CFG.GetInt(self.section, 'game_id', 0)
+        self._phpSessionId = CFG.Get(self.section, 'PHPSESSID', '')
         if self._checkInterval > 0 and self._gameId and self._phpSessionId:
-            self._lbl['text'] = f'[自动开服]运行中'
+            self._lbl['text'] = f'[{self._name}]运行中'
             self.after(self._checkInterval, self.check)
         else:
-            self._lbl['text'] = f'[自动开服]开启失败'
+            self._lbl['text'] = f'[{self._name}]开启失败'
             self._lbl['fg'] = 'red'
 
     def check(self):
@@ -304,11 +332,119 @@ class PluginServerMgr(tkinter.Frame, IPlugin):
         try:
             resp = request.urlopen(req)
             if resp.url.find('login.html') > 0:
-                self._lbl['text'] = f'[自动开服]PHPSESSID 已失效'
+                self._lbl['text'] = f'[{self._name}]PHPSESSID 已失效'
                 self._lbl['fg'] = 'red'
                 return
             resp_msg = resp.read().decode()
-            # print('PluginServerMgr', resp_msg)
+            # print(self.section, resp_msg)
         except Exception as e:
             print(repr(e))
         self.after(self._checkInterval, self.check)
+
+
+class PluginServerMonitor(FrameEx, IPlugin):
+    def __init__(self, gui):
+        FrameEx.__init__(self)
+        IPlugin.__init__(self, '服务器监控')
+        self._gui = gui
+        self._lbl = tkinter.Label(self, text=f'[{self._name}]', fg='gray')
+        self._lbl.grid(row=0, column=0)
+        if not self.enabled:
+            self._lbl['text'] = f'[{self._name}]已关闭'
+            return
+        self.initUI()
+        self._max_restart_times = CFG.GetInt(self.section, 'max_restart_times', 0)
+        self._db = DB('monitor.json')
+        self.check()
+
+    def initUI(self):
+        var = tkinter.BooleanVar(value=False)
+        self._check = tkinter.Checkbutton(self,
+                                          text='',
+                                          fg='gray',
+                                          variable=var,
+                                          onvalue=True,
+                                          offvalue=False,
+                                          command=self.onCheckToggle)
+        self._check.var = var
+        self._check.grid(row=0, column=1)
+        self.onCheckToggle()
+
+    def onCheckToggle(self):
+        st = self._check.var.get()
+        self._check['text'] = '自动重启已开启' if st else '自动重启已关闭'
+        if st and self.getClosedServers():
+            self._check.deselect()
+            self.onCheckToggle()
+            GUITool.MessageBox('服务器全部运行中才可以开启自动重启')
+
+    def getClosedServers(self):
+        ret = []
+        for s in STool.getServerDirs():
+            s = ServerManager.getServer(s)
+            if not s.isRunning():
+                ret.append(s)
+        return ret
+
+    def check(self):
+        if self._check.var.get():
+            for s in self.getClosedServers():
+                today = str(date.today())
+                if self._db.get('date') != today:
+                    self._db.clear()
+                    self._db.set('date', today)
+                times = self._db.get(s.dirname, 0)
+                # print(s.dirname, s.name, times)
+                if times < self._max_restart_times:
+                    times += 1
+                    s.start()
+                    self._gui.callPlugin('PluginDingTalkRobot', 'send', f'{s.name}第{times}/{self._max_restart_times}次自动重启')
+                    self._db.set(s.dirname, times)
+                    self._db.save()
+                    self.after(10000, self.check)
+                    return
+        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)
+
+
+class PluginDingTalkRobot(FrameEx, IPlugin):
+    def __init__(self, gui):
+        FrameEx.__init__(self)
+        IPlugin.__init__(self, '钉钉机器人')
+        self._lbl = tkinter.Label(self, text=f'[{self._name}]初始化', fg='gray')
+        self._lbl.grid(row=0, column=0)
+        if not self.enabled:
+            self._lbl['text'] = f'[{self._name}]已关闭'
+            return
+        self._lbl['text'] = f'[{self._name}]已开启'
+        self._tag = CFG.Get(self.section, 'tag', 'GST')
+        self._token = CFG.Get(self.section, 'access_token')
+        self._url = f'https://oapi.dingtalk.com/robot/send?access_token={self._token}'
+        # self.send('初始化成功')
+
+    def send(self, msg):
+        if not self.enabled:
+            return
+        try:
+            header = {'Content-Type': 'application/json'}
+            data = json.dumps({'text': {'content': f'[{self._tag}]{msg}'}, 'msgtype': 'text'})
+            data = data.encode('utf-8')
+            req = request.Request(url=self._url, headers=header, data=data)
+            resp = request.urlopen(req)
+            # print(resp.read().decode())
+        except Exception as e:
+            print(repr(e))
+
+
+class PluginDiskFreeSpace(FrameEx, IPlugin):
+    def __init__(self, gui):
+        FrameEx.__init__(self)
+        IPlugin.__init__(self, '磁盘剩余空间')
+        self._lbl = tkinter.Label(self, text=self.name)
+        self._lbl.pack()
+        self.check()
+
+    def check(self):
+        gb = get_free_space_gb(CFG.SERVER_ROOT)
+        self._lbl['text'] = f'{self._name} [{gb} GB]'
+        self._lbl['fg'] = 'black' if gb > CFG.DISK_LEFT_SPACE_WARING_NUM_GB else 'red'
+        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)
