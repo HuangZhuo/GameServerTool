@@ -81,7 +81,7 @@ class WebServerThread(Thread):
 
     def req(self, request):
         if request.method == 'POST':
-            if len(request.json) > 0:
+            if request.json:
                 # for postman
                 return request.json
             else:
