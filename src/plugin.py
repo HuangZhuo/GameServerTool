@@ -8,6 +8,8 @@ import tkinter
 from datetime import date
 from urllib import request
 
+import psutil
+
 from common import GUITool, counter, get_free_space_gb
 from core import CFG, DB, ServerManager, STool
 from webserver import WebServer
@@ -355,7 +357,7 @@ class PluginServerMonitor(FrameEx, IPlugin):
         self.initUI()
         self._max_restart_times = CFG.GetInt(self.section, 'max_restart_times', 0)
         self._db = DB('monitor.json')
-        self.check()
+        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)
 
     def initUI(self):
         var = tkinter.BooleanVar(value=False)
@@ -386,9 +388,39 @@ class PluginServerMonitor(FrameEx, IPlugin):
                 ret.append(s)
         return ret
 
+    def getNotRespondingServers(self):
+        '''获取未响应，自动关闭这些进程。依赖WerFault进行检测'''
+        ret = []
+        for pid in psutil.pids():
+            if pid == 0 or not psutil.pid_exists(pid):
+                continue
+            try:
+                p = psutil.Process(pid)
+                if p.exe().find('WerFault') >= 0:
+                    # print(p.exe(), p.cmdline())
+                    pid = p.cmdline()[3]  # pid 参数位置， todo：判错
+                    s = ServerManager.getServer(pid=int(pid))
+                    if s:
+                        p.kill()
+                        ret.append(s)
+            except FileNotFoundError as e:
+                pass
+            except psutil.NoSuchProcess as e:
+                pass
+            except psutil.AccessDenied as e:
+                pass
+            except Exception as e:
+                logging.error(repr(e))
+        return ret
+
     def check(self):
+        ss = self.getNotRespondingServers()
+        for s in ss:
+            logging.info(f'服务器[%s]未响应', s.dirname)
+            s.exit(bForce=True)
+            self._gui.callPlugin('PluginDingTalkRobot', 'send', f'{s.name}未响应，强制关闭')
         if self._check.var.get():
-            for s in self.getClosedServers():
+            for s in ss:
                 today = str(date.today())
                 if self._db.get('date') != today:
                     self._db.clear()

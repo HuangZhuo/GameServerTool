@@ -508,6 +508,10 @@ class ServerV3(IServer):
     def name(self):  # 服务器可读名称
         return f'{self.getCfg().name}-{self.getCfg().title}'
 
+    @property
+    def pid(self):
+        return self._pid
+
     def start(self):
         if not self.isValid():
             return False, '服务器不可用'
@@ -599,6 +603,7 @@ class ServerV3(IServer):
         # assert (self.isRunning())
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.SOL_TCP)
+            s.settimeout(5.0)  # https://stackoverflow.com/questions/2719017/how-to-set-timeout-on-pythons-socket-recv-method
             s.connect(('localhost', self.getCfg().masterPort))
 
             sign = cmd + self.getCfg().masterKey
@@ -635,13 +640,14 @@ class ServerV3(IServer):
         if self._pid != 0 and psutil.pid_exists(self._pid):
             try:
                 p = psutil.Process(self._pid)
+                # print(p.status(), self._pid)
                 if p.exe() and os.path.samefile(self._exePath, p.exe()):
                     return True
             except:
                 pass
 
         for pid in psutil.pids():
-            if not psutil.pid_exists(pid):
+            if pid == 0 or not psutil.pid_exists(pid):
                 continue
             try:
                 p = psutil.Process(pid)
@@ -786,7 +792,11 @@ class ServerManager:
             return False, repr(e)
 
     @staticmethod
-    def getServer(name=None, id=None) -> ServerV3:
+    def getServer(name=None, id=None, pid=None) -> ServerV3:
+        if pid:  # 通过进程id查询
+            for _, s in ServerManager.__servers.items():
+                if s.pid == pid: return s
+            return None
         if id:
             name = STool.getServerDirName(id)
         if not ServerManager.__servers.get(name):
