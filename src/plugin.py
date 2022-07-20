@@ -42,6 +42,15 @@ class IPlugin:
     def enabled(self):  # 插件是否开启
         return CFG.HasSection(self._section) and CFG.GetBool(self._section, 'enabled')
 
+    def log_info(self, msg, *args):
+        logging.info(f'[{self.name}]' + msg, *args)
+
+    def log_warning(self, msg, *args):
+        logging.warning(f'[{self.name}]' + msg, *args)
+
+    def log_error(self, msg, *args):
+        logging.error(f'[{self.name}]' + msg, *args)
+
 
 # 批量创建服务器插件
 class PluginCreateMultiServers(FrameEx, IPlugin):
@@ -287,6 +296,7 @@ class PluginWebService(FrameEx, IPlugin):
         self._port = CFG.Get('WebServer', 'port', '5000')
         self._service = None
         self.after(2000, self.initWebServer)
+        self.log_info('初始化完成')
 
     def initWebServer(self):
         # self._gui.callPlugin('PluginDingTalkRobot', 'send', 'initWebServer')
@@ -300,7 +310,7 @@ class PluginWebService(FrameEx, IPlugin):
             return
         else:
             self._lbl['text'] = f'[{self.name}]运行中@{self._host}:{self._port}'
-            self._lbl['fg'] = 'gray'
+            self._lbl['fg'] = 'green'
             self.after(1000, self.checkWebServer)
 
 
@@ -322,10 +332,12 @@ class PluginServerMgr(FrameEx, IPlugin):
         self._phpSessionId = CFG.Get(self.section, 'PHPSESSID', '')
         if self._checkInterval > 0 and self._gameId and self._phpSessionId:
             self._lbl['text'] = f'[{self._name}]运行中'
+            self._lbl['fg'] = 'green'
             self.after(self._checkInterval, self.check)
         else:
             self._lbl['text'] = f'[{self._name}]开启失败'
             self._lbl['fg'] = 'red'
+        self.log_info('初始化完成')
 
     def check(self):
         url = f'http://127.0.0.1:81/Admin/Ctrl/server_add_check.html?gameid={self._gameId}'
@@ -354,15 +366,18 @@ class PluginServerMonitor(FrameEx, IPlugin):
         if not self.enabled:
             self._lbl['text'] = f'[{self._name}]已关闭'
             return
+        self._lbl['text'] = f'[{self._name}]运行中'
+        self._lbl['fg'] = 'green'
         self.initUI()
         self._max_restart_times = CFG.GetInt(self.section, 'max_restart_times', 0)
         self._db = DB('monitor.json')
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)
+        self.log_info('初始化完成')
 
     def initUI(self):
-        var = tkinter.BooleanVar(value=False)
+        var = tkinter.BooleanVar(value=True)
         self._check = tkinter.Checkbutton(self,
-                                          text='',
+                                          text='自动重启',
                                           fg='gray',
                                           variable=var,
                                           onvalue=True,
@@ -374,11 +389,8 @@ class PluginServerMonitor(FrameEx, IPlugin):
 
     def onCheckToggle(self):
         st = self._check.var.get()
-        self._check['text'] = '自动重启已开启' if st else '自动重启已关闭'
-        if st and self.getClosedServers():
-            self._check.deselect()
-            self.onCheckToggle()
-            GUITool.MessageBox('服务器全部运行中才可以开启自动重启')
+        self._check['text'] = '自动重启开' if st else '自动重启关'
+        self._check['fg'] = 'green' if st else 'gray'
 
     def getClosedServers(self):
         ret = []
@@ -388,9 +400,8 @@ class PluginServerMonitor(FrameEx, IPlugin):
                 ret.append(s)
         return ret
 
-    def getNotRespondingServers(self):
-        '''获取未响应，自动关闭这些进程。依赖WerFault进行检测'''
-        ret = []
+    def getNotRespondingServer(self):
+        '''获取*一个*未响应服务器进程。依赖WerFault进行检测'''
         for pid in psutil.pids():
             if pid == 0 or not psutil.pid_exists(pid):
                 continue
@@ -402,7 +413,7 @@ class PluginServerMonitor(FrameEx, IPlugin):
                     s = ServerManager.getServer(pid=int(pid))
                     if s:
                         p.kill()
-                        ret.append(s)
+                        return s
             except FileNotFoundError as e:
                 pass
             except psutil.NoSuchProcess as e:
@@ -410,32 +421,39 @@ class PluginServerMonitor(FrameEx, IPlugin):
             except psutil.AccessDenied as e:
                 pass
             except Exception as e:
-                logging.error(repr(e))
-        return ret
+                self.log_error(repr(e))
+        return None
 
     def check(self):
-        ss = self.getNotRespondingServers()
-        for s in ss:
-            logging.info(f'服务器[%s]未响应', s.dirname)
+        s = self.getNotRespondingServer()
+        delay = 0  # 下次检测延迟
+        while True:
+            if not s: break
+            self.log_info(f'服务器[{s.dirname}]未响应，自动重启[{self._check.var.get()}]')
             s.exit(bForce=True)
             self._gui.callPlugin('PluginDingTalkRobot', 'send', f'{s.name}未响应，强制关闭')
-        if self._check.var.get():
-            for s in ss:
-                today = str(date.today())
-                if self._db.get('date') != today:
-                    self._db.clear()
-                    self._db.set('date', today)
-                times = self._db.get(s.dirname, 0)
-                # print(s.dirname, s.name, times)
-                if times < self._max_restart_times:
-                    times += 1
-                    s.start()
-                    self._gui.callPlugin('PluginDingTalkRobot', 'send', f'{s.name}第{times}/{self._max_restart_times}次自动重启')
-                    self._db.set(s.dirname, times)
-                    self._db.save()
-                    self.after(10000, self.check)
-                    return
-        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)
+
+            if not self._check.var.get(): break
+            today = str(date.today())
+            if self._db.get('date') != today:
+                self._db.clear()
+                self._db.set('date', today)
+                self._db.save()
+                self.log_info(f'重启记录过期，日期已更新为 {today}')
+            times = self._db.get(s.dirname, 0)
+            # print(s.dirname, s.name, times)
+            if times < self._max_restart_times:
+                times += 1
+                s.start()
+                self.log_info(f'服务器[{s.dirname}]第{times}/{self._max_restart_times}次自动重启')
+                self._gui.callPlugin('PluginDingTalkRobot', 'send', f'{s.name}第{times}/{self._max_restart_times}次自动重启')
+                self._db.set(s.dirname, times)
+                self._db.save()
+                delay = 5000
+            else:
+                self.log_warning(f'重启次数已满：{times}/{self._max_restart_times}')
+            break
+        self.after(CFG.SERVER_STATE_UPDATE_INTERVAL + delay, self.check)
 
 
 class PluginDingTalkRobot(FrameEx, IPlugin):
@@ -448,10 +466,11 @@ class PluginDingTalkRobot(FrameEx, IPlugin):
             self._lbl['text'] = f'[{self._name}]已关闭'
             return
         self._lbl['text'] = f'[{self._name}]已开启'
+        self._lbl['fg'] = 'green'
         self._tag = CFG.Get(self.section, 'tag', 'GST')
         self._token = CFG.Get(self.section, 'access_token')
         self._url = f'https://oapi.dingtalk.com/robot/send?access_token={self._token}'
-        # self.send('初始化成功')
+        self.log_info('初始化完成')
 
     def send(self, msg):
         if not self.enabled:
@@ -464,7 +483,7 @@ class PluginDingTalkRobot(FrameEx, IPlugin):
             resp = request.urlopen(req)
             # print(resp.read().decode())
         except Exception as e:
-            print(repr(e))
+            self.log_error(repr(e))
 
 
 class PluginDiskFreeSpace(FrameEx, IPlugin):
@@ -474,6 +493,7 @@ class PluginDiskFreeSpace(FrameEx, IPlugin):
         self._lbl = tkinter.Label(self, text=self.name)
         self._lbl.pack()
         self.check()
+        self.log_info('初始化完成')
 
     def check(self):
         gb = get_free_space_gb(CFG.SERVER_ROOT)
