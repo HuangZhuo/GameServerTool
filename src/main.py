@@ -4,22 +4,18 @@
     传奇游戏服多服运维工具
 """
 
-import tkinter
+import logging
 import os
 import time
-import logging, traceback
+import tkinter
+import traceback
+from logging.handlers import RotatingFileHandler
 
-from common import counter
-from common import GUITool
-from common import Profiler
-from core import Action
-from core import STool
-from core import PlanManager
-from core import ServerManager
-from core import CFG
-import view
 import plugin
 import tkicon
+import view
+from common import GUITool, Profiler, counter
+from core import CFG, Action, PlanManager, ServerManager, STool
 
 TITLE = '传奇游戏服管理'
 VERSION = '3.6.3'
@@ -249,9 +245,21 @@ class GUI(tkinter.Tk):
         return self._frameServers
 
 
-def main():
-    logging.basicConfig(filename='cmd.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def initLogger():
+    handler = RotatingFileHandler( \
+        filename='cmd.log',
+        maxBytes=2 * 1024 * 1024,
+        backupCount=1
+    )
+    logging.basicConfig( \
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[handler]
+    )
 
+
+def main():
+    initLogger()
     try:
         if not os.path.exists(CFG.SERVER_ROOT):
             GUITool.MessageBox('服务器根目录不存在')
