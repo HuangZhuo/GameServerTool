@@ -11,7 +11,7 @@ from urllib import request
 import psutil
 
 from common import GUITool, counter, get_free_space_gb
-from core import CFG, DB, ServerManager, STool
+from core import CFG, DB, ServerManager, STool, TaskExecutor
 from webserver import WebServer
 
 
@@ -118,20 +118,18 @@ class PluginCreateMultiServers(FrameEx, IPlugin):
         if not GUITool.MessageBox('是否创建以下服务器：{}'.format(listCreate), ask=True):
             return
 
-        logging.info('开始批量创建服务器：{}'.format(listCreate))
-        listSuc = []
-        for id in listCreate:
-            ret, err = ServerManager.createServer(id)
-            if ret:
-                listSuc.append(id)
-            else:
-                logging.error('创建服务器{}失败，终止批量创建'.format(id))
-                GUITool.MessageBox(err)
-                break
+        def _do(id):
+            server, err = ServerManager.createServer(id)
+            if not server: self._errors.append(err)
+            return server != None
 
-        if len(listSuc) > 0:
-            logging.info('完成批量创建服务器：{}'.format(listSuc))
-            self._gui.initServerList()
+        def _prog(cur, total=None):
+            self._gui.onProgress(cur, total)
+            if cur == total:
+                GUITool.MessageBox('\n'.join(self._errors) if self._errors else '完成批量创建服务器')
+
+        self._errors = []
+        TaskExecutor.submit(_do, listCreate, _prog)
 
 
 # 控制台执行命令插件

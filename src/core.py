@@ -10,6 +10,7 @@ import socket
 import subprocess
 import time
 from abc import ABCMeta, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from enum import Enum
 from hashlib import md5
@@ -18,7 +19,7 @@ import psutil
 import uiautomation
 from slpp import slpp
 
-from common import INI, get_hwnds_for_pid
+from common import INI, Profiler, get_hwnds_for_pid
 
 
 class CMD_INI(INI):
@@ -91,6 +92,10 @@ class CMD_INI(INI):
     def DISK_LEFT_SPACE_WARING_NUM_GB(self):
         # 磁盘剩余空间警告
         return self.GetInt('CMD', 'DISK_SPACE_WARING_NUM_GB', 10)
+
+    @property
+    def THREAD_POOL_MAX_WORKERS(self):
+        return self.GetInt('CMD', 'THREAD_POOL_MAX_WORKERS', 8)
 
     def GetAction(self, key):
         return self.Get('Actions', key, None)
@@ -178,11 +183,12 @@ class STool:
                 if os.path.isfile(src):
                     shutil.copy(src, dirname)
                 elif os.path.isdir(src):
-                    shutil.rmtree(os.path.join(dirname, f), ignore_errors=True)
-                    shutil.copytree(src, os.path.join(dirname, f))
+                    # shutil.rmtree(os.path.join(dirname, f), ignore_errors=True)
+                    shutil.copytree(src, os.path.join(dirname, f), dirs_exist_ok=True)
             except FileNotFoundError as e:
                 pass
         logging.info('更新服务器目录[%s]成功，文件[%s]', name, filelist)
+        return True
 
     @staticmethod
     def getServerExePath(dirname):
@@ -822,3 +828,47 @@ class ServerManager:
     def getCount():
         '''获取总服务器（目录）数'''
         return len(ServerManager.__servers)
+
+
+# 主任务线程
+class _TaskExecutor:
+    multi_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='multi_task')
+    single_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='single_task')
+    single_task = None
+    multi_task = None
+
+    OK = 0
+    BUSY = 1
+
+    def submit(self, func, args: list, onProgress, max_workers=CFG.THREAD_POOL_MAX_WORKERS, notify=None):
+        @Profiler(notify)
+        def _wrapper():
+            with ThreadPoolExecutor(max_workers=max_workers) as t:
+                tasks = []
+                for v in args:
+                    tasks.append(t.submit(func, v))
+                total, finished = len(tasks), 0
+                for future in as_completed(tasks):
+                    # 这个循环实际上会阻塞当前线程直到所有任务完成
+                    # future.result()
+                    finished += 1
+                    onProgress(finished, total)
+            time.sleep(0.1)
+            onProgress(0, len(args))
+
+        if self.multi_task and not self.multi_task.done():
+            return self.BUSY
+        self.multi_task = self.multi_exe.submit(_wrapper)
+        return self.OK
+
+    def run_if_idle(self, func):
+        if self.single_task and not self.single_task.done():
+            return self.BUSY
+        if self.multi_task and not self.multi_task.done():
+            return self.BUSY
+        self.single_task = self.single_exe.submit(func)
+        return self.OK
+
+
+TaskExecutor = _TaskExecutor()
+del _TaskExecutor

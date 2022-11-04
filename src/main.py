@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import tkinter
+import tkinter.ttk
 import traceback
 from logging.handlers import RotatingFileHandler
 
@@ -15,10 +16,10 @@ import plugin
 import tkicon
 import view
 from common import GUITool, Profiler, counter
-from core import CFG, Action, PlanManager, ServerManager, STool
+from core import CFG, Action, PlanManager, ServerManager, STool, TaskExecutor
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.6.3'
+VERSION = '3.7.0'
 
 
 class GUI(tkinter.Tk):
@@ -39,13 +40,13 @@ class GUI(tkinter.Tk):
             self.after(0, self.onUpdate)
 
     def initMenu(self):
-        mebubar = tkinter.Menu(self)
-        mebubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
-        mebubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
-        mebubar.add_command(label="刷新", command=self.reload)
-        mebubar.add_command(label="重启", command=self.restart)
-        mebubar.add_command(label="计划", command=self.plan)
-        self.config(menu=mebubar)
+        menubar = tkinter.Menu(self)
+        menubar.add_command(label="日志", command=lambda: STool.showFileInTextEditor('cmd.log'))
+        menubar.add_command(label="配置", command=lambda: STool.showFileInTextEditor('cmd.ini'))
+        menubar.add_command(label="刷新", command=self.reload)
+        menubar.add_command(label="重启", command=self.restart)
+        menubar.add_command(label="计划", command=self.plan)
+        self.config(menu=menubar)
 
     def initUI(self):
         plugin.PluginDiskFreeSpace(self).pack()
@@ -54,7 +55,8 @@ class GUI(tkinter.Tk):
 
         plugin.PluginServerSelector(self).pack(padx=5, pady=5)
 
-        tkinter.Frame(height=2, bd=1, relief="sunken").pack(fill=tkinter.X, padx=5)
+        self._bar = tkinter.ttk.Progressbar(mode='determinate', style="fp.Horizontal.TProgressbar")
+        self._bar.pack(fill=tkinter.X, padx=5)
 
         frame3 = tkinter.Frame()
         frame3.pack(padx=5, pady=5)
@@ -101,19 +103,12 @@ class GUI(tkinter.Tk):
 
     def onUpdate(self):
         PlanManager.getInstance().check()
-        self.refreshServerList()
+        TaskExecutor.run_if_idle(self.refreshServerList)
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
     def onXClick(self):
         self.destroy()
         logging.info('Server Tools Closed!')
-
-    def initServerList(self):
-        '''强制重新初始化服务器器列表
-        - 创建/删除服务器时
-        - 游戏服目录在资源管理器发生变更时
-        '''
-        self._frameServers.init()
 
     def refreshServerList(self, name=None):
         '''刷新列表内服务器状态'''
@@ -140,9 +135,7 @@ class GUI(tkinter.Tk):
 
     def onCreateServerClick(self):
         ret, err = ServerManager.createServer()
-        if ret:
-            self.initServerList()
-        else:
+        if not ret:
             GUITool.MessageBox(err)
 
     def onDeleteServerClick(self):
@@ -152,28 +145,28 @@ class GUI(tkinter.Tk):
             return
         if not GUITool.MessageBox('是否删除以下服务器目录：\n{}'.format(servers), ask=True):
             return
-        for v in servers:
-            ret, err = ServerManager.deleteServer(name=v)
-            if not ret and err:
-                GUITool.MessageBox(err)
-                break
-        self.initServerList()
+
+        def _do(server_name):
+            return ServerManager.deleteServer(name=server_name)
+
+        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress):
+            GUITool.MessageBox('请等待当前任务完成')
 
     def onUpdateServerClick(self):
-        Profiler.START()
-        for v in self.getSelectedServers():
-            if ServerManager.getServer(v).isRunning():
-                GUITool.MessageBox('请先关闭服务器')
-                Profiler.ABORT()
-                return
-            STool.updateServerDir(v)
-        Profiler.FINISH('整包更新完成', notify=True)
+        def _do(server_name):
+            if ServerManager.getServer(server_name).isRunning():
+                return False
+            return STool.updateServerDir(server_name)
+
+        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='整包更新完成'):
+            GUITool.MessageBox('请等待当前任务完成')
 
     def onUpdateServerDataClick(self):
-        Profiler.START()
-        for v in self.getSelectedServers():
-            STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
-        Profiler.FINISH('数据更新完成', notify=True)
+        def _do(server_name):
+            return STool.updateServerDir(server_name, ('data', 'GameConfig.ini'))
+
+        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='数据更新完成'):
+            GUITool.MessageBox('请等待当前任务完成')
 
     def onStartServerClick(self):
         for v in self.getSelectedServers():
@@ -237,6 +230,10 @@ class GUI(tkinter.Tk):
     def onTestClick(self):
         Action('Test').execute(7, 8, 9)
         pass
+
+    def onProgress(self, cur, total=100):
+        self._bar['value'] = cur
+        self._bar['maximum'] = total
 
     def getSelectedServers(self):
         return self._frameServers.getSelected()

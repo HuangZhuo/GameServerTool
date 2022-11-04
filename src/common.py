@@ -146,22 +146,16 @@ class INI:
 
 
 class Profiler:
-    __t = 0
+    def __init__(self, notify=None) -> None:
+        self._notify = notify
 
-    @staticmethod
-    def START():
-        # assert Profiler.__t == 0
-        Profiler.__t = time.perf_counter()
+    def __call__(self, func):
+        def _wrapper():
+            t = time.perf_counter()
+            func()
+            t = time.perf_counter() - t
+            if self._notify:
+                msg = '{}，耗时 {:.2f}s'.format(self._notify, t)
+                GUITool.MessageBox(msg)
 
-    @staticmethod
-    def FINISH(text, notify=False):
-        # assert Profiler.__t != 0
-        t = time.perf_counter() - Profiler.__t
-        msg = '{}，耗时 {:.2f}s'.format(text, t)
-        if notify:
-            GUITool.MessageBox(msg)
-        Profiler.__t = 0
-
-    @staticmethod
-    def ABORT():
-        Profiler.__t == 0
+        return _wrapper
