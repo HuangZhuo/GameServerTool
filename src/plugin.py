@@ -161,13 +161,20 @@ class PluginExecuteCommand(FrameEx, IPlugin):
         if len(servers) == 0:
             GUITool.MessageBox('没有选择运行中的服务器')
             return
-        for s in servers:
-            if not s.isRunning():
-                continue
+
+        def _do(s):
             ret, err = s.execute(input)
             if not ret:
-                GUITool.MessageBox(err)
-                break
+                self._errors.append(f'{s.name}：{err}')
+            return ret
+
+        def _prog(cur, total=None):
+            self._gui.onProgress(cur, total)
+            if cur == total:
+                GUITool.MessageBox('\n'.join(self._errors) if self._errors else '完成')
+
+        self._errors = []
+        TaskExecutor.submit(_do, servers, _prog)
 
 
 # 服务器选择器
@@ -260,26 +267,50 @@ class PluginExtendOperations(FrameEx, IPlugin):
         GUITool.GridConfig(self, padx=5)
 
     def onUpdateClick(self):
-        for v in self._gui.getSelectedServers():
-            server = ServerManager.getServer(v)
-            if not server.isValid():
-                continue
-            if server.isRunning():
-                ret, err = server.exit()
-                if not ret:
-                    GUITool.MessageBox(err)
+        def _do(s):
+            server = ServerManager.getServer(s)
+            ret, err = None, None
+            while True:
+                if not server.isValid():
+                    ret, err = False, f'{s}：服务器不可用'
                     break
-            STool.updateServerDir(v)
-            server.start()
+                if server.isRunning():
+                    ret, err = server.exit()
+                    if not ret: break
+                if not STool.updateServerDir(s):
+                    ret, err = False, f'{s}：目录更新失败'
+                    break
+                ret, err = server.start()
+                break
+            if not ret:
+                self._errors.append(err)
+            return ret
+
+        self._errors = []
+        TaskExecutor.submit(_do, self._gui.getSelectedServers(), self.onProgress)
 
     def onHotUpdateClick(self):
-        for v in self._gui.getSelectedServers():
-            server = ServerManager.getServer(v)
+        def _do(s):
+            server = ServerManager.getServer(s)
             if not server.isValid():
-                continue
-            STool.updateServerDir(v, filelist=('data', 'GameConfig.ini'))
-            if server.isRunning():
-                server.hotUpdate()
+                self._errors.append(f'{s}：服务器不可用')
+                return False
+            if not STool.updateServerDir(s, filelist=('data', 'GameConfig.ini')):
+                self._errors.append(f'{s}：目录更新失败')
+                return False
+
+            ret, err = server.hotUpdate()
+            if not ret:
+                self._errors.append(f'{server.name}：{err}')
+            return ret
+
+        self._errors = []
+        TaskExecutor.submit(_do, self._gui.getSelectedServers(), self.onProgress)
+
+    def onProgress(self, cur, total=None):
+        self._gui.onProgress(cur, total)
+        if cur == total:
+            GUITool.MessageBox('\n'.join(self._errors) if self._errors else '完成')
 
 
 class PluginWebService(FrameEx, IPlugin):

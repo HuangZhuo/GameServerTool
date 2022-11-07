@@ -832,13 +832,15 @@ class ServerManager:
 
 # 主任务线程
 class _TaskExecutor:
+    # 用于执行对服务器的批量操作，默认多线程执行
     multi_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='multi_task')
+    # 用于执行服务器状态定时刷新，仅当进程空闲时执行
     single_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='single_task')
     single_task = None
     multi_task = None
 
-    OK = 0
-    BUSY = 1
+    OK = 0  # 准备执行
+    BUSY = 1  # 线程忙，忽略执行
 
     def submit(self, func, args: list, onProgress, max_workers=CFG.THREAD_POOL_MAX_WORKERS, notify=None):
         @Profiler(notify)

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 """
-    传奇游戏服多服运维工具
+传奇游戏服多服运维工具
 """
 
 import logging
@@ -15,11 +15,11 @@ from logging.handlers import RotatingFileHandler
 import plugin
 import tkicon
 import view
-from common import GUITool, Profiler, counter
+from common import GUITool, counter
 from core import CFG, Action, PlanManager, ServerManager, STool, TaskExecutor
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.0'
+VERSION = '3.7.1'
 
 
 class GUI(tkinter.Tk):
@@ -71,8 +71,8 @@ class GUI(tkinter.Tk):
         GUITool.createBtn('重启', self.onRestartServerClick, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('关闭', self.onStopServerClick, parent=frame3, grid=(0, nextcol()))
         GUITool.createBtn('隐藏控制台', self.onHideServerConsoleClick, parent=frame3, grid=(0, nextcol()))
+        GUITool.createBtn('强制关闭', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['fg'] = 'gray'
         if CFG.DEBUG_MODE:
-            GUITool.createBtn('终止', self.onTerminateServerClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'red'
             GUITool.createBtn("测试", self.onTestClick, parent=frame3, grid=(0, nextcol()))['bg'] = 'yellow'
         GUITool.GridConfig(frame3, padx=5)
 
@@ -172,7 +172,6 @@ class GUI(tkinter.Tk):
         for v in self.getSelectedServers():
             ret, err = ServerManager.getServer(v).start()
             if ret:
-                self.refreshServerList(v)
                 if CFG.SERVER_START_WAIT_TIME > 0:
                     time.sleep(CFG.SERVER_START_WAIT_TIME)
             else:
@@ -183,7 +182,7 @@ class GUI(tkinter.Tk):
         for v in self.getSelectedServers():
             ret, err = ServerManager.getServer(v).exit()
             if ret:
-                self.refreshServerList(v)
+                pass
             else:
                 # https://stackoverflow.com/questions/16083491/make-a-tkinter-toplevel-active
                 self.focus_force()
@@ -202,20 +201,12 @@ class GUI(tkinter.Tk):
                 break
 
     def onTerminateServerClick(self):
-        for v in self.getSelectedServers():
-            ret, err = ServerManager.getServer(v).exit(bForce=True)
-            if ret:
-                self.refreshServerList(v)
-            else:
-                GUITool.MessageBox(err)
-                break
+        if not GUITool.MessageBox('是否强制关闭所选服务器？', ask=True): return
+
+        TaskExecutor.submit(lambda s: ServerManager.getServer(s).exit(bForce=True), self.getSelectedServers(), self.onProgress)
 
     def onHotUpdateServerClick(self):
-        for v in self.getSelectedServers():
-            if ServerManager.getServer(v).hotUpdate():
-                self.refreshServerList(v)
-            else:
-                continue
+        TaskExecutor.submit(lambda s: ServerManager.getServer(s).hotUpdate(), self.getSelectedServers(), self.onProgress)
 
     def onRestartServerClick(self):
         for v in self.getSelectedServers():
