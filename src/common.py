@@ -48,9 +48,9 @@ def counter(start=0, step=1):
 
 class GUITool:
     @staticmethod
-    def getChildByWidgetName(root, widgetName):
+    def getChildByName(root, name):
         for k, v in root.children.items():
-            if v.widgetName == widgetName:
+            if v._name == name:
                 return v
         return None
 
@@ -159,3 +159,14 @@ class Profiler:
                 GUITool.MessageBox(msg)
 
         return _wrapper
+
+
+# https://blog.csdn.net/sinat_36188088/article/details/106053048
+def CoInitializer(func):
+    def _wrapper():
+        import pythoncom
+        pythoncom.CoInitialize()
+        func()
+        pythoncom.CoUninitialize()
+
+    return _wrapper

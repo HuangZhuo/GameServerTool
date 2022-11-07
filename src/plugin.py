@@ -282,12 +282,20 @@ class PluginExtendOperations(FrameEx, IPlugin):
                     break
                 ret, err = server.start()
                 break
-            if not ret:
+            if ret:
+                self._gui.refreshServerList(name=server.dirname)
+            else:
                 self._errors.append(err)
             return ret
 
         self._errors = []
-        TaskExecutor.submit(_do, self._gui.getSelectedServers(), self.onProgress)
+        TaskExecutor.submit(
+            _do,
+            self._gui.getSelectedServers(),
+            self.onProgress,
+            max_workers=1,
+            work_delay=CFG.SERVER_START_WAIT_TIME,
+        )
 
     def onHotUpdateClick(self):
         def _do(s):

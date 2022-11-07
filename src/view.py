@@ -135,7 +135,7 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
 
     def init(self):
         for i, v in enumerate(STool.getServerDirs()):
-            if GUITool.getChildByWidgetName(self, v):
+            if GUITool.getChildByName(self, v):
                 continue
             self.createServerItem(i, v)
 
@@ -148,7 +148,7 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
     def refresh(self, name=None):
         if name:
             # 刷新单个
-            item = GUITool.getChildByWidgetName(self, name)
+            item = GUITool.getChildByName(self, name)
             if item:
                 item.refresh()
             return

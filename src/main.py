@@ -6,7 +6,6 @@
 
 import logging
 import os
-import time
 import tkinter
 import tkinter.ttk
 import traceback
@@ -19,7 +18,7 @@ from common import GUITool, counter
 from core import CFG, Action, PlanManager, ServerManager, STool, TaskExecutor
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.1'
+VERSION = '3.7.2'
 
 
 class GUI(tkinter.Tk):
@@ -169,27 +168,48 @@ class GUI(tkinter.Tk):
             GUITool.MessageBox('请等待当前任务完成')
 
     def onStartServerClick(self):
-        for v in self.getSelectedServers():
-            ret, err = ServerManager.getServer(v).start()
+        def _do(s):
+            server = ServerManager.getServer(s)
+            ret, err = server.start()
             if ret:
-                if CFG.SERVER_START_WAIT_TIME > 0:
-                    time.sleep(CFG.SERVER_START_WAIT_TIME)
+                self.refreshServerList(name=server.dirname)
             else:
                 GUITool.MessageBox(err)
-                break
+            return ret
+
+        TaskExecutor.submit(
+            _do,
+            self.getSelectedServers(),
+            self.onProgress,
+            max_workers=1,
+            work_delay=CFG.SERVER_START_WAIT_TIME,
+        )
 
     def onStopServerClick(self):
-        for v in self.getSelectedServers():
-            ret, err = ServerManager.getServer(v).exit()
+        def _do(s):
+            server = ServerManager.getServer(s)
+            ret, err = server.exit()
             if ret:
-                pass
+                self.refreshServerList(name=server.dirname)
+                return True
             else:
                 # https://stackoverflow.com/questions/16083491/make-a-tkinter-toplevel-active
                 self.focus_force()
                 if GUITool.MessageBox(f'{err}，是否强制关闭?', ask=True):
-                    ServerManager.getServer(v).exit(bForce=True)
+                    ret, err = ServerManager.getServer(s).exit(bForce=True)
+                    if ret: self.refreshServerList(name=server.dirname)
+                    else: GUITool.MessageBox(err)
+                    return ret
                 else:
-                    break
+                    return False
+
+        TaskExecutor.submit(
+            _do,
+            self.getSelectedServers(),
+            self.onProgress,
+            max_workers=1,
+            work_delay=CFG.SERVER_START_WAIT_TIME,
+        )
 
     def onHideServerConsoleClick(self):
         for v in self.getSelectedServers():
@@ -203,10 +223,18 @@ class GUI(tkinter.Tk):
     def onTerminateServerClick(self):
         if not GUITool.MessageBox('是否强制关闭所选服务器？', ask=True): return
 
-        TaskExecutor.submit(lambda s: ServerManager.getServer(s).exit(bForce=True), self.getSelectedServers(), self.onProgress)
+        TaskExecutor.submit(
+            lambda s: ServerManager.getServer(s).exit(bForce=True),
+            self.getSelectedServers(),
+            self.onProgress,
+        )
 
     def onHotUpdateServerClick(self):
-        TaskExecutor.submit(lambda s: ServerManager.getServer(s).hotUpdate(), self.getSelectedServers(), self.onProgress)
+        TaskExecutor.submit(
+            lambda s: ServerManager.getServer(s).hotUpdate(),
+            self.getSelectedServers(),
+            self.onProgress,
+        )
 
     def onRestartServerClick(self):
         for v in self.getSelectedServers():
@@ -234,15 +262,15 @@ class GUI(tkinter.Tk):
 
 
 def initLogger():
-    handler = RotatingFileHandler( \
+    handler = RotatingFileHandler(
         filename='cmd.log',
         maxBytes=2 * 1024 * 1024,
-        backupCount=1
+        backupCount=1,
     )
-    logging.basicConfig( \
+    logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[handler]
+        handlers=[handler],
     )
 
 

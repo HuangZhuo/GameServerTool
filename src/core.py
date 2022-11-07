@@ -19,7 +19,7 @@ import psutil
 import uiautomation
 from slpp import slpp
 
-from common import INI, Profiler, get_hwnds_for_pid
+from common import INI, CoInitializer, Profiler, get_hwnds_for_pid
 
 
 class CMD_INI(INI):
@@ -833,42 +833,67 @@ class ServerManager:
 # 主任务线程
 class _TaskExecutor:
     # 用于执行对服务器的批量操作，默认多线程执行
-    multi_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='multi_task')
+    _multi_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='multi_task')
     # 用于执行服务器状态定时刷新，仅当进程空闲时执行
-    single_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='single_task')
-    single_task = None
-    multi_task = None
+    _single_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='single_task')
+    _single_task = None
+    _multi_task = None
 
     OK = 0  # 准备执行
     BUSY = 1  # 线程忙，忽略执行
 
-    def submit(self, func, args: list, onProgress, max_workers=CFG.THREAD_POOL_MAX_WORKERS, notify=None):
+    def submit(
+        self,
+        func,
+        args: list,
+        onProgress,
+        notify=None,
+        max_workers=CFG.THREAD_POOL_MAX_WORKERS,
+        work_delay=0,
+    ):
+        if max_workers > 1 and work_delay > 0:
+            logging.error('延时型任务只能单线程执行')
+            max_workers = 1
+
+        @CoInitializer
         @Profiler(notify)
-        def _wrapper():
+        def _wrapper_single():
+            finished = 0
+            for v in args:
+                if not func(v): break  # 任务执行失败时中断
+                finished += 1
+                onProgress(finished, len(args))
+                time.sleep(work_delay)
+            time.sleep(0.1)
+            onProgress(0, len(args))
+
+        @CoInitializer
+        @Profiler(notify)
+        def _wrapper_multi():
             with ThreadPoolExecutor(max_workers=max_workers) as t:
                 tasks = []
                 for v in args:
                     tasks.append(t.submit(func, v))
-                total, finished = len(tasks), 0
+                finished = 0
                 for future in as_completed(tasks):
                     # 这个循环实际上会阻塞当前线程直到所有任务完成
                     # future.result()
                     finished += 1
-                    onProgress(finished, total)
+                    onProgress(finished, len(args))
             time.sleep(0.1)
             onProgress(0, len(args))
 
-        if self.multi_task and not self.multi_task.done():
+        if self._multi_task and not self._multi_task.done():
             return self.BUSY
-        self.multi_task = self.multi_exe.submit(_wrapper)
+        self._multi_task = self._multi_exe.submit(_wrapper_multi if max_workers > 1 else _wrapper_single)
         return self.OK
 
     def run_if_idle(self, func):
-        if self.single_task and not self.single_task.done():
+        if self._single_task and not self._single_task.done():
             return self.BUSY
-        if self.multi_task and not self.multi_task.done():
+        if self._multi_task and not self._multi_task.done():
             return self.BUSY
-        self.single_task = self.single_exe.submit(func)
+        self._single_task = self._single_exe.submit(func)
         return self.OK
 
 
