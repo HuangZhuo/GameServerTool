@@ -65,3 +65,17 @@ class TestCommon(unittest.TestCase):
     def test_date(self):
         d = date.today()
         print(d)
+
+    def test_closure(self):
+        funcs = []
+
+        def f(i):
+            def k():
+                return i
+
+            return k
+
+        for i in range(5):
+            funcs.append(f(i))
+        for f in funcs:
+            print(f())

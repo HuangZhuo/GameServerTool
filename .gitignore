@@ -8,3 +8,5 @@ __pycache__
 huey.db
 huey.db-shm
 huey.db-wal
+@AutomationLog.txt
+monitor.json
