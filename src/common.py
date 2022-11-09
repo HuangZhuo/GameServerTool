@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 
-import tkinter
-import tkinter.messagebox as tkMessageBox
 import configparser
 import logging
 import time
+import tkinter
+import tkinter.messagebox as tkMessageBox
 
 
 # https://blog.csdn.net/qq_40134903/article/details/88297476
@@ -71,7 +71,7 @@ class GUITool:
             return tkMessageBox.showinfo(title=title, message=str)
 
     @staticmethod
-    def GridConfig(root, padx=5, pady=0):
+    def GridConfig(root: tkinter.Frame, padx=5, pady=0):
         cols, rows = root.grid_size()
         for col in range(cols):
             root.grid_columnconfigure(col, pad=padx)

@@ -135,15 +135,19 @@ class ServerListViewFixed(tkinter.Frame, IServerListView):
 
     def init(self):
         for i, v in enumerate(STool.getServerDirs()):
-            if GUITool.getChildByName(self, v):
-                continue
-            self.createServerItem(i, v)
+            item = GUITool.getChildByName(self, v)
+            if not item:
+                item = self.createServerItem(v)
+            self.doLayout(item, i)
 
         GUITool.GridConfig(self, padx=5, pady=5)
         self.refresh()
 
-    def createServerItem(self, idx, name):
-        ServerItemBasic(self, name).grid(row=idx, column=0, sticky='W')
+    def createServerItem(self, name) -> ServerItem:
+        return ServerItemBasic(self, name)
+
+    def doLayout(self, item: ServerItem, idx):
+        item.grid(row=idx, column=0, sticky='W')
 
     def refresh(self, name=None):
         if name:
@@ -201,8 +205,8 @@ class ServerListViewFixedMultiCol(ServerListViewFixed):
     # 默认使用单列
     COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
 
-    def createServerItem(self, idx, name):
-        ServerItemBasic(self, name).grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
+    def doLayout(self, item: ServerItem, idx):
+        item.grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
 
 
 class ServerItemPlan(ServerItem):
@@ -236,8 +240,11 @@ class ServerListPlanViewFixedMultiCol(ServerListViewFixed):
     # 默认使用单列
     COL_NUM = max(1, CFG.GetInt('View', 'FixedMultiCol.COL_NUM', 1))
 
-    def createServerItem(self, idx, name):
-        ServerItemPlan(self, name).grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
+    def createServerItem(self, name):
+        return ServerItemPlan(self, name)
+
+    def doLayout(self, item: ServerItem, idx):
+        item.grid(row=idx // self.COL_NUM, column=idx % self.COL_NUM)
 
 
 class PlanWindow(tkinter.Toplevel):
