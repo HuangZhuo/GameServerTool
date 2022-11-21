@@ -537,6 +537,7 @@ class PluginDiskFreeSpace(FrameEx, IPlugin):
 
     def check(self):
         gb = get_free_space_gb(CFG.SERVER_ROOT)
-        self._lbl['text'] = f'{self._name} [{gb} GB]'
+        ver = ServerManager.getTemplate().getVersion()
+        self._lbl['text'] = f'服务器模板 V{ver} | {self._name} [{gb} GB]'
         self._lbl['fg'] = 'black' if gb > CFG.DISK_LEFT_SPACE_WARING_NUM_GB else 'red'
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.check)

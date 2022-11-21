@@ -774,6 +774,7 @@ class ServerConfig(INI):
 
 
 class ServerManager:
+    __template = ServerV3(CFG.SERVER_TEMPLATE)
     __servers = dict()
 
     @staticmethod
@@ -814,6 +815,10 @@ class ServerManager:
             assert (STool.isServerDirExists(name))
             ServerManager.__servers[name] = ServerV3(name)
         return ServerManager.__servers[name]
+
+    @staticmethod
+    def getTemplate() -> ServerV3:
+        return ServerManager.__template
 
     @staticmethod
     def isDBServerRunning(port):
