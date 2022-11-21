@@ -15,10 +15,10 @@ import plugin
 import tkicon
 import view
 from common import GUITool, counter
-from core import CFG, Action, PlanManager, ServerManager, STool, TaskExecutor
+from core import CFG, Action, TaskExecutor, PlanManager, ServerManager, STool
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.3'
+VERSION = '3.7.4'
 
 
 class GUI(tkinter.Tk):
@@ -102,6 +102,7 @@ class GUI(tkinter.Tk):
 
     def onUpdate(self):
         PlanManager.getInstance().check()
+        # 仅在未执行批量任务时刷新
         TaskExecutor.run_if_idle(self.refreshServerList)
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
@@ -137,6 +138,7 @@ class GUI(tkinter.Tk):
         if not ret:
             GUITool.MessageBox(err)
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onDeleteServerClick(self):
         servers = self.getSelectedServers()
         if len(servers) == 0:
@@ -148,25 +150,25 @@ class GUI(tkinter.Tk):
         def _do(server_name):
             return ServerManager.deleteServer(name=server_name)
 
-        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress):
-            GUITool.MessageBox('请等待当前任务完成')
+        TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress)
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onUpdateServerClick(self):
         def _do(server_name):
             if ServerManager.getServer(server_name).isRunning():
                 return False
             return STool.updateServerDir(server_name)
 
-        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='整包更新完成'):
-            GUITool.MessageBox('请等待当前任务完成')
+        TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='整包更新完成')
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onUpdateServerDataClick(self):
         def _do(server_name):
             return STool.updateServerDir(server_name, ('data', 'GameConfig.ini'))
 
-        if TaskExecutor.BUSY == TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='数据更新完成'):
-            GUITool.MessageBox('请等待当前任务完成')
+        TaskExecutor.submit(_do, self.getSelectedServers(), self.onProgress, notify='数据更新完成')
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onStartServerClick(self):
         def _do(s):
             server = ServerManager.getServer(s)
@@ -250,8 +252,8 @@ class GUI(tkinter.Tk):
         Action('Test').execute(7, 8, 9)
         pass
 
-    def onProgress(self, cur, total=100):
-        self._bar['value'] = cur
+    def onProgress(self, finished, total=100):
+        self._bar['value'] = finished
         self._bar['maximum'] = total
 
     def getSelectedServers(self):

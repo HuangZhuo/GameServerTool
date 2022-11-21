@@ -564,7 +564,8 @@ class ServerV3(IServer):
             time.sleep(CFG.SERVER_EXIT_CHECK_INTERVAL)
             timeout += CFG.SERVER_EXIT_CHECK_INTERVAL
             if timeout >= CFG.SERVER_EXIT_TIMEOUT:
-                return False, '服务器关闭超时'
+                logging.info(f'服务器[{self._dirname}][{self.getCfg().name}]关闭检测超时')
+                return False, '服务器关闭检测超时'
         logging.info('服务器[%s][%s]关闭成功,耗时%.2f秒', self._dirname, self.getCfg().name, timeout)
         return True, None
 
@@ -690,6 +691,8 @@ class ServerV3(IServer):
         return self._servercfg
 
     def showConsoleWindow(self):
+        if TaskExecutor.busy():
+            return False, '请等待批量任务执行完成'
         window, err = self._findWindow()
         if window:
             window.SwitchToThisWindow()
@@ -697,6 +700,8 @@ class ServerV3(IServer):
         return False, err
 
     def hideConsoleWindow(self):
+        if TaskExecutor.busy():
+            return False, '请等待批量任务执行完成'
         window, err = self._findWindow()
         if window:
             window.Minimize()
@@ -830,27 +835,41 @@ class ServerManager:
         return len(ServerManager.__servers)
 
 
-# 主任务线程
-class _TaskExecutor:
+# 任务执行线程
+class _TaskExecutor(object):
+    def __init__(self, name: str) -> None:
+        self._exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix=name)
+        self._task = None
+        self._task_in_idle = None
+
+    def busy(self):
+        return self._task and not self._task.done()
+
+    def check_busy(self, noti_func, noti_str: str = None):
+        def decorator(func):
+            def wrapper(*args):
+                if self.busy():
+                    noti_func(noti_str or '请等待当前任务完成')
+                    return
+                return func(*args)
+
+            return wrapper
+
+        return decorator
+
     # 用于执行对服务器的批量操作，默认多线程执行
-    _multi_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='multi_task')
-    # 用于执行服务器状态定时刷新，仅当进程空闲时执行
-    _single_exe = ThreadPoolExecutor(max_workers=1, thread_name_prefix='single_task')
-    _single_task = None
-    _multi_task = None
-
-    OK = 0  # 准备执行
-    BUSY = 1  # 线程忙，忽略执行
-
     def submit(
         self,
         func,
         args: list,
         onProgress,
+        onFinish=None,
         notify=None,
         max_workers=CFG.THREAD_POOL_MAX_WORKERS,
         work_delay=0,
     ):
+        if self.busy(): return
+
         if max_workers > 1 and work_delay > 0:
             logging.error('延时型任务只能单线程执行')
             max_workers = 1
@@ -860,42 +879,41 @@ class _TaskExecutor:
         def _wrapper_single():
             finished = 0
             for v in args:
-                if not func(v): break  # 任务执行失败时中断
+                ret = func(v)
                 finished += 1
                 onProgress(finished, len(args))
+                if not ret: break  # 任务执行失败时中断
                 time.sleep(work_delay)
             time.sleep(0.1)
+            if onFinish: onFinish(finished, len(args))
             onProgress(0, len(args))
 
         @CoInitializer
         @Profiler(notify)
         def _wrapper_multi():
+            finished = 0
             with ThreadPoolExecutor(max_workers=max_workers) as t:
                 tasks = []
                 for v in args:
                     tasks.append(t.submit(func, v))
-                finished = 0
                 for future in as_completed(tasks):
                     # 这个循环实际上会阻塞当前线程直到所有任务完成
                     # future.result()
                     finished += 1
                     onProgress(finished, len(args))
             time.sleep(0.1)
+            if onFinish: onFinish(finished, len(args))
             onProgress(0, len(args))
 
-        if self._multi_task and not self._multi_task.done():
-            return self.BUSY
-        self._multi_task = self._multi_exe.submit(_wrapper_multi if max_workers > 1 else _wrapper_single)
-        return self.OK
+        self._task = self._exe.submit(_wrapper_multi if max_workers > 1 else _wrapper_single)
 
+    # 用于执行服务器状态定时刷新，仅当进程空闲时执行
     def run_if_idle(self, func):
-        if self._single_task and not self._single_task.done():
-            return self.BUSY
-        if self._multi_task and not self._multi_task.done():
-            return self.BUSY
-        self._single_task = self._single_exe.submit(func)
-        return self.OK
+        if self.busy(): return
+        if self._task_in_idle and not self._task_in_idle.done(): return
+        self._task_in_idle = self._exe.submit(func)
 
 
-TaskExecutor = _TaskExecutor()
+TaskExecutor = _TaskExecutor('multi_task')
+
 del _TaskExecutor

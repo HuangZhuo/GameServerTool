@@ -69,6 +69,7 @@ class PluginCreateMultiServers(FrameEx, IPlugin):
         tkinter.Label(self, text='*支持输入格式: 10|10-20|10,20', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onCreateMultiServerClick(self):
         input = self._edit.get().strip()
         print('onCreateMultiServerClick', input)
@@ -149,6 +150,7 @@ class PluginExecuteCommand(FrameEx, IPlugin):
         tkinter.Label(self, text='*命令参考: GMCommand::DoSystemCommand', fg='gray').grid(row=0, column=nextcol())
         GUITool.GridConfig(self, padx=5)
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onExecuteClick(self):
         input = self._edit.get().strip()
         print('onExecuteClick', input)
@@ -266,6 +268,7 @@ class PluginExtendOperations(FrameEx, IPlugin):
         GUITool.createBtn('数据更新->热更', self.onHotUpdateClick, parent=self, grid=(0, nextcol()))
         GUITool.GridConfig(self, padx=5)
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onUpdateClick(self):
         def _do(s):
             server = ServerManager.getServer(s)
@@ -292,11 +295,13 @@ class PluginExtendOperations(FrameEx, IPlugin):
         TaskExecutor.submit(
             _do,
             self._gui.getSelectedServers(),
-            self.onProgress,
+            self._gui.onProgress,
+            self.onFinish,
             max_workers=1,
             work_delay=CFG.SERVER_START_WAIT_TIME,
         )
 
+    @TaskExecutor.check_busy(GUITool.MessageBox)
     def onHotUpdateClick(self):
         def _do(s):
             server = ServerManager.getServer(s)
@@ -313,12 +318,10 @@ class PluginExtendOperations(FrameEx, IPlugin):
             return ret
 
         self._errors = []
-        TaskExecutor.submit(_do, self._gui.getSelectedServers(), self.onProgress)
+        TaskExecutor.submit(_do, self._gui.getSelectedServers(), self._gui.onProgress, self.onFinish)
 
-    def onProgress(self, cur, total=None):
-        self._gui.onProgress(cur, total)
-        if cur == total:
-            GUITool.MessageBox('\n'.join(self._errors) if self._errors else '完成')
+    def onFinish(self, finished, total=None):
+        GUITool.MessageBox('\n'.join(self._errors) if self._errors else '完成')
 
 
 class PluginWebService(FrameEx, IPlugin):
