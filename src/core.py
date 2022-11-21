@@ -774,7 +774,7 @@ class ServerConfig(INI):
 
 
 class ServerManager:
-    __template = ServerV3(CFG.SERVER_TEMPLATE)
+    __template = None
     __servers = dict()
 
     @staticmethod
@@ -818,6 +818,7 @@ class ServerManager:
 
     @staticmethod
     def getTemplate() -> ServerV3:
+        ServerManager.__template = ServerManager.__template or ServerV3(CFG.SERVER_TEMPLATE)
         return ServerManager.__template
 
     @staticmethod
