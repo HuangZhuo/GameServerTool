@@ -18,7 +18,7 @@ from common import GUITool, counter
 from core import CFG, Action, TaskExecutor, PlanManager, ServerManager, STool
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.4'
+VERSION = '3.7.5'
 
 
 class GUI(tkinter.Tk):

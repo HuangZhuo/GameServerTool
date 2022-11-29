@@ -700,8 +700,6 @@ class ServerV3(IServer):
         return False, err
 
     def hideConsoleWindow(self):
-        if TaskExecutor.busy():
-            return False, '请等待批量任务执行完成'
         window, err = self._findWindow()
         if window:
             window.Minimize()
@@ -883,21 +881,21 @@ class _TaskExecutor(object):
         @CoInitializer
         @Profiler(notify)
         def _wrapper_single():
-            finished = 0
+            finished, total = 0, len(args)
             for v in args:
                 ret = func(v)
                 finished += 1
-                onProgress(finished, len(args))
+                onProgress(finished, total)
                 if not ret: break  # 任务执行失败时中断
-                time.sleep(work_delay)
+                if finished < total: time.sleep(work_delay)
             time.sleep(0.1)
-            if onFinish: onFinish(finished, len(args))
-            onProgress(0, len(args))
+            if onFinish: onFinish(finished, total)
+            onProgress(0, total)
 
         @CoInitializer
         @Profiler(notify)
         def _wrapper_multi():
-            finished = 0
+            finished, total = 0, len(args)
             with ThreadPoolExecutor(max_workers=max_workers) as t:
                 tasks = []
                 for v in args:
@@ -906,10 +904,10 @@ class _TaskExecutor(object):
                     # 这个循环实际上会阻塞当前线程直到所有任务完成
                     # future.result()
                     finished += 1
-                    onProgress(finished, len(args))
+                    onProgress(finished, total)
             time.sleep(0.1)
-            if onFinish: onFinish(finished, len(args))
-            onProgress(0, len(args))
+            if onFinish: onFinish(finished, total)
+            onProgress(0, total)
 
         self._task = self._exe.submit(_wrapper_multi if max_workers > 1 else _wrapper_single)
 
