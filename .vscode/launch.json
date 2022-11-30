@@ -5,18 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "PowerShell Launch Current File",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "cwd": "${cwd}"
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console":"internalConsole"
+            "console": "internalConsole"
         },
         {
             "name": "GameServerTool",
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/src/main.py",
-            "console":"internalConsole"
+            "console": "internalConsole"
         }
     ]
 }
