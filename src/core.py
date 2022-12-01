@@ -934,6 +934,8 @@ class _WatchDog(object):
         def on_modified(self, event):
             # print(event)
             # https://github.com/gorakhargosh/watchdog/issues/346
+            if event.is_directory: return
+            if not os.path.samefile(self._filename, event.src_path): return
             self._func()
 
     def __init__(self) -> None:
@@ -947,12 +949,15 @@ class _WatchDog(object):
         self._observer.start()
 
     def watch(self, filename, func):
-        if filename in self._watchers:
-            self._observer.unschedule(self._watchers[filename])
+        self.unwatch(filename)
         dirname = os.path.dirname(filename)
         w = self._observer.schedule(WatchDog._EventHandler(filename, func), dirname)
         self._watchers[filename] = w
         return self
+
+    def unwatch(self, filename):
+        if filename in self._watchers:
+            self._observer.unschedule(self._watchers[filename])
 
     def stop(self):
         self._observer.stop()

@@ -14,9 +14,11 @@ class LightBulb(StateMachine):
     switchOff = onState.to(offState)
 
 
-bulb = LightBulb()
-print(bulb.current_state)
-bulb.switchOn()
-print(bulb.current_state)
+if __name__ == "__main__":
 
-print(bulb.is_onState)
+    bulb = LightBulb()
+    print(bulb.current_state)
+    bulb.switchOn()
+    print(bulb.current_state)
+
+    print(bulb.is_onState)
