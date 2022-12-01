@@ -15,10 +15,10 @@ import plugin
 import tkicon
 import view
 from common import GUITool, counter
-from core import CFG, Action, TaskExecutor, PlanManager, ServerManager, STool
+from core import (CFG, Action, PlanManager, ServerManager, STool, TaskExecutor, WatchDog)
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.5'
+VERSION = '3.7.6'
 
 
 class GUI(tkinter.Tk):
@@ -285,6 +285,7 @@ def main():
         if not os.path.exists(CFG.SERVER_TEMPLATE):
             GUITool.MessageBox('服务器模板路径不存在')
             return
+        WatchDog.start()
         GUI().mainloop()
     except SystemExit:
         return
@@ -292,6 +293,8 @@ def main():
         logging.error(traceback.format_exc())
         GUITool.MessageBox(traceback.format_exc())
         return
+    finally:
+        WatchDog.stop()
 
 
 if __name__ == '__main__':

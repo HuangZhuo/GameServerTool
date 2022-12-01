@@ -18,6 +18,8 @@ from hashlib import md5
 import psutil
 import uiautomation
 from slpp import slpp
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 from common import INI, CoInitializer, Profiler, get_hwnds_for_pid
 
@@ -747,8 +749,8 @@ class ServerConfig(INI):
     def showInEditor(self):
         # os.system('notepad %s' % (self.filename)) 会弹出控制台
         # 以阻塞方式打开便于修改完成之后重新加载
-        STool.showFileInTextEditor(self.filename, wait=True)
-        self.Load()
+        STool.showFileInTextEditor(self.filename, wait=False)
+        WatchDog.watch(self.filename, self.Load)
 
     @property
     def name(self):
@@ -919,5 +921,43 @@ class _TaskExecutor(object):
 
 
 TaskExecutor = _TaskExecutor('multi_task')
-
 del _TaskExecutor
+
+
+class _WatchDog(object):
+    class _EventHandler(FileSystemEventHandler):
+        def __init__(self, filename, func) -> None:
+            super().__init__()
+            self._filename = filename
+            self._func = func
+
+        def on_modified(self, event):
+            # print(event)
+            # https://github.com/gorakhargosh/watchdog/issues/346
+            self._func()
+
+    def __init__(self) -> None:
+        self._observer = None
+        self._watchers = {}
+
+    def start(self):
+        if self._observer:
+            return
+        self._observer = Observer()
+        self._observer.start()
+
+    def watch(self, filename, func):
+        if filename in self._watchers:
+            self._observer.unschedule(self._watchers[filename])
+        dirname = os.path.dirname(filename)
+        w = self._observer.schedule(WatchDog._EventHandler(filename, func), dirname)
+        self._watchers[filename] = w
+        return self
+
+    def stop(self):
+        self._observer.stop()
+        self._observer.join()
+
+
+WatchDog = _WatchDog()
+del _WatchDog
