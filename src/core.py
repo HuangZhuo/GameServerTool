@@ -14,12 +14,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from enum import Enum
 from hashlib import md5
+from threading import Lock
 
 import psutil
 import uiautomation
 from slpp import slpp
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from common import INI, CoInitializer, Profiler, get_hwnds_for_pid
 
@@ -212,6 +213,8 @@ class STool:
 
 # 自定义行为配置扩展
 class Action:
+    _lock = Lock()
+
     def __init__(self, name):
         self._name = name
         self._cmd = None
@@ -223,6 +226,7 @@ class Action:
         if not self._cmd:
             logging.info('Action[%s]未配置', self._name)
             return
+        self._lock.acquire()
         cmd = '{0} {1}'.format(self._cmd, ' '.join([str(v) for v in args]))
         logging.info('Action[%s]开始执行：%s', self._name, cmd)
 
@@ -233,6 +237,7 @@ class Action:
                 logging.info('> {}'.format(line.strip()))
         os.remove(tmpfilename)
         logging.info('Action[%s]执行结束', self._name)
+        self._lock.release()
 
 
 class DB:
