@@ -18,7 +18,7 @@ from common import GUITool, counter
 from core import (CFG, Action, PlanManager, ServerManager, STool, TaskExecutor, WatchDog)
 
 TITLE = '传奇游戏服管理'
-VERSION = '3.7.7'
+VERSION = '3.7.8'
 
 
 class GUI(tkinter.Tk):
@@ -107,6 +107,7 @@ class GUI(tkinter.Tk):
         self.after(CFG.SERVER_STATE_UPDATE_INTERVAL, self.onUpdate)
 
     def onXClick(self):
+        TaskExecutor.stop()
         self.destroy()
         logging.info('Server Tools Closed!')
 
@@ -121,7 +122,7 @@ class GUI(tkinter.Tk):
     def restart(self):
         try:
             os.system('start {}'.format(os.sys.executable))
-            os.sys.exit(0)
+            self.onXClick()
         except NameError as e:
             logging.info(repr(e))
             pass
@@ -287,7 +288,7 @@ def main():
             return
         WatchDog.start()
         GUI().mainloop()
-    except SystemExit:
+    except (KeyboardInterrupt, SystemExit):
         return
     except:
         logging.error(traceback.format_exc())

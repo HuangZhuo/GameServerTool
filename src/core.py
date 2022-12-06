@@ -924,6 +924,11 @@ class _TaskExecutor(object):
         if self._task_in_idle and not self._task_in_idle.done(): return
         self._task_in_idle = self._exe.submit(func)
 
+    def stop(self):
+        if self._task and self._task.running(): self._task.cancel()
+        if self._task_in_idle and self._task_in_idle.running(): self._task_in_idle.cancel()
+        # self._exe.shutdown()
+
 
 TaskExecutor = _TaskExecutor('multi_task')
 del _TaskExecutor
