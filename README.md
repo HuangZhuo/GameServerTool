@@ -1,6 +1,8 @@
 # GameServerTool
 传奇游戏服多服运维工具
 
+![main_interface](https://s2.loli.net/2022/09/07/pjRS73Oco6QAlfU.png)
+
 ## [文档](https://gitee.com/JoeyHw/GameServerTool/wikis/pages)
 
 ## 功能
